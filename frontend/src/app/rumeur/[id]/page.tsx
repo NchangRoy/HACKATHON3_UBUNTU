@@ -56,7 +56,7 @@ export default function RumeurDetailPage() {
       try {
         const [rData, evRes] = await Promise.all([
           RumorsService.getApiRumors1(id as string),
-          EvidenceService.getApiEvidence(id as string).catch(() => [])
+          EvidenceService.getApiEvidence1(id as string).catch(() => [])
         ]);
 
         const rumorData = (rData as any).data || rData;
@@ -130,16 +130,6 @@ export default function RumeurDetailPage() {
       } catch (err) {
         console.error("Erreur chargement:", err);
       } finally {
-        const localEvsRaw = localStorage.getItem(`local_evidences_${id}`);
-        if (localEvsRaw) {
-          try {
-            const localEvs = JSON.parse(localEvsRaw);
-            setEvidences(prev => {
-              const all = [...prev, ...localEvs];
-              return Array.from(new Map(all.map(e => [e.id, e])).values());
-            });
-          } catch(e) {}
-        }
         setLoading(false);
       }
     };
@@ -222,15 +212,7 @@ export default function RumeurDetailPage() {
         detail: newEv.detail || "Preuve ajoutée"
       };
       
-      setEvidences(prev => {
-        const next = [...prev, newEvObj];
-        const existingRaw = localStorage.getItem(`local_evidences_${id}`);
-        let existing = [];
-        if (existingRaw) try { existing = JSON.parse(existingRaw); } catch(e){}
-        existing.push(newEvObj);
-        localStorage.setItem(`local_evidences_${id}`, JSON.stringify(existing));
-        return next;
-      });
+      setEvidences(prev => [...prev, newEvObj]);
       
       // Clear form
       setNewEv({ stance: "SUPPORTE", type: "text", auteur: "", detail: "", file: null });

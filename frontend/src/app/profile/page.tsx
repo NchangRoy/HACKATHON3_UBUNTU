@@ -16,6 +16,7 @@ const C = {
 export default function ProfilePage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [newRumor, setNewRumor] = useState("");
   const [location, setLocation] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -31,6 +32,7 @@ export default function ProfilePage() {
       router.push("/login");
       return;
     }
+    setIsLoggedIn(true);
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
       setUser(JSON.parse(storedUser));
@@ -59,6 +61,8 @@ export default function ProfilePage() {
   const handleLogout = () => {
     setAuthToken(null);
     localStorage.removeItem("user");
+    setIsLoggedIn(false);
+    setUser(null);
     router.push("/");
   };
 
@@ -142,19 +146,65 @@ export default function ProfilePage() {
       backgroundImage: `radial-gradient(${C.slate300} 2px, transparent 2px)`,
       backgroundSize: "24px 24px"
     }}>
-      {/* Navbar Minimaliste */}
-      <nav style={{ position: "fixed", top: 0, left: 0, right: 0, height: 64, background: "rgba(255, 255, 255, 0.8)", backdropFilter: "blur(16px)", borderBottom: `1px solid rgba(255, 255, 255, 0.5)`, display: "flex", alignItems: "center", padding: "0 24px", justifyContent: "space-between", zIndex: 100, boxShadow: `0 4px 20px ${C.slate900}05` }}>
-        <Link href="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
-          <img src="/logo.png" alt="Logo" style={{ width: 28, height: 28, borderRadius: 6 }} />
-          <span style={{ fontWeight: 800, fontSize: 16, color: C.slate900 }}>FakeCheckAI</span>
-        </Link>
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: C.slate600 }}>{user.name}</span>
-          <button onClick={handleLogout} style={{ padding: "8px 16px", fontSize: 12, fontWeight: 700, color: C.red600, background: "none", border: `1px solid ${C.red600}40`, borderRadius: 8, cursor: "pointer" }}>
-            Déconnexion
-          </button>
+      {/* ── Navbar (Glassmorphism) ── */}
+      <header style={{
+        position: "fixed", top: 12, left: "50%", transform: "translateX(-50%)",
+        width: "calc(100% - 24px)", maxWidth: 1100, zIndex: 100,
+        background: "rgba(255, 255, 255, 0.7)", backdropFilter: "blur(12px)",
+        border: "1px solid rgba(255, 255, 255, 0.3)", borderRadius: 16,
+        boxShadow: "0 8px 32px rgba(0, 0, 0, 0.05)"
+      }}>
+        <div style={{ padding: "0 24px", height: 60, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <Link href="/" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none" }}>
+            <img src="/logo.png" alt="Logo" style={{ width: 32, height: 32, borderRadius: 8 }} />
+            <span style={{ fontWeight: 800, fontSize: 18, color: C.slate900, letterSpacing: "-0.5px" }}>FakeCheckAI</span>
+          </Link>
+
+          <nav style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            {["Rumeurs", "Méthode", "Docs"].map(n => (
+              <Link key={n} href="#" style={{ padding: "8px 12px", fontSize: 13, fontWeight: 600, color: C.slate600, borderRadius: 8, textDecoration: "none", transition: "all .2s" }}
+                onMouseEnter={e => { e.currentTarget.style.color = C.slate900; e.currentTarget.style.background = C.slate100; }}
+                onMouseLeave={e => { e.currentTarget.style.color = C.slate600; e.currentTarget.style.background = "transparent"; }}
+              >
+                {n}
+              </Link>
+            ))}
+            <div style={{ width: 1, height: 16, background: C.slate200, margin: "0 10px" }} />
+
+            {isLoggedIn ? (
+              <>
+                <Link href={user?.role === "moderator" ? "/moderateur/dashboard" : "/profile"} style={{ padding: "8px 16px", fontSize: 13, fontWeight: 600, color: C.blue600, borderRadius: 8, textDecoration: "none", transition: "all .2s" }}
+                  onMouseEnter={e => e.currentTarget.style.background = C.blue50}
+                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                >
+                  {user?.name || "Mon Profil"}
+                </Link>
+                <button onClick={handleLogout} style={{ padding: "8px 16px", fontSize: 13, fontWeight: 700, color: C.slate700, borderRadius: 8, background: "none", border: "none", cursor: "pointer", transition: "all .2s" }}
+                  onMouseEnter={e => e.currentTarget.style.background = C.slate100}
+                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                >
+                  Déconnexion
+                </button>
+              </>
+            ) : (
+              <>
+                <Link href="/login" style={{ padding: "8px 16px", fontSize: 13, fontWeight: 600, color: C.slate700, borderRadius: 8, textDecoration: "none", transition: "all .2s" }}
+                  onMouseEnter={e => e.currentTarget.style.background = C.slate100}
+                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                >
+                  Connexion
+                </Link>
+                <Link href="/register" style={{ padding: "8px 18px", background: C.slate900, color: "#fff", fontSize: 13, fontWeight: 700, borderRadius: 8, textDecoration: "none", boxShadow: `0 4px 12px ${C.slate900}30`, transition: "transform .2s" }}
+                  onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.background = C.slate800; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.background = C.slate900; }}
+                >
+                  S'inscrire
+                </Link>
+              </>
+            )}
+          </nav>
         </div>
-      </nav>
+      </header>
 
       <main style={{ maxWidth: 800, margin: "0 auto", display: "grid", gridTemplateColumns: "300px 1fr", gap: 32 }}>
         {/* Sidebar Profil */}

@@ -28,6 +28,36 @@ export class EvidenceService {
         });
     }
     /**
+     * Lister toutes les preuves
+     * @param rumorId Filtrer par rumeur
+     * @param type
+     * @param limit
+     * @param offset
+     * @returns any Liste des preuves
+     * @throws ApiError
+     */
+    public static getApiEvidence1(
+        rumorId?: string,
+        type?: 'video' | 'audio' | 'text' | 'image',
+        limit: number = 20,
+        offset?: number,
+    ): CancelablePromise<{
+        success?: boolean;
+        data?: Array<Evidence>;
+        total?: number;
+    }> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/evidence',
+            query: {
+                'rumor_id': rumorId,
+                'type': type,
+                'limit': limit,
+                'offset': offset,
+            },
+        });
+    }
+    /**
      * Ajouter une preuve
      * @param requestBody
      * @returns any Preuve ajoutée

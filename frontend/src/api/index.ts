@@ -18,6 +18,7 @@ export { AuthService } from './services/AuthService';
 export { ClaimsService } from './services/ClaimsService';
 export { EvidenceService } from './services/EvidenceService';
 export { ModeratorsService } from './services/ModeratorsService';
+export { RumorRelationsService } from './services/RumorRelationsService';
 export { RumorsService } from './services/RumorsService';
 export { ThemesService } from './services/ThemesService';
 export { UsersService } from './services/UsersService';
