@@ -13,8 +13,7 @@ from langchain_core.output_parsers import PydanticOutputParser
 from  langchain_classic.agents import create_tool_calling_agent
 from langchain_classic.agents import AgentExecutor
 from langchain.tools import tool
-
-
+from tools import  compute_claim_confidence
 
 
 llm=ChatOpenAI(model="openai/gpt-oss-120b",   # OpenRouter model name
@@ -108,9 +107,9 @@ prompt=ChatPromptTemplate.from_messages(
 agent=create_tool_calling_agent(
     llm=llm,
     prompt=prompt,
-    tools=[extract_claims, filter_contradictory_claims],
+    tools=[extract_claims, filter_contradictory_claims,compute_claim_confidence],
 )
-agent_executor=AgentExecutor(agent=agent,tools=[extract_claims, filter_contradictory_claims],verbose=True)
+agent_executor=AgentExecutor(agent=agent,tools=[extract_claims, filter_contradictory_claims,compute_claim_confidence],verbose=True)
 #query=input("Enter query\n")
 #raw_response=agent_executor.invoke({"query":query})
 

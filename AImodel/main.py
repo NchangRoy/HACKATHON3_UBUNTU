@@ -31,3 +31,16 @@ Remove contradictory claims and return only consistent ones.
     result = run_agent(prompt)
 
     return {"claims": result}
+
+
+@app.post("/score_claim")
+def score_claim(payload: dict):
+
+    result = run_agent({
+        "claim": payload["claim"],
+        "evidences": payload["evidences"],
+        "claim_evidences": payload["claim_evidences"],
+        "rules": payload["rules"]
+    })
+
+    return result
