@@ -16,7 +16,7 @@ const C = {
 };
 
 type Evidence = {
-  id: string; stance: "SUPPORTE" | "REFUTE" | "NEUTRE";
+  id: string; realId: string; stance: "SUPPORTE" | "REFUTE" | "NEUTRE";
   auteur: string; type: string;
   t_event: string; t_obs: string; t_upload: string;
   hash: string; detail: string;
@@ -43,10 +43,14 @@ export default function RumeurDetailPage() {
   const [modalMode, setModalMode] = useState<"NONE" | "EVIDENCE" | "VERDICT" | "AUDIT">("NONE");
   const [user, setUser] = useState<any>(null);
   const [claimId, setClaimId] = useState<string | null>(null);
+  const [penalRules, setPenalRules] = useState<{ id: string; title: string; description: string }[]>([]);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (storedUser) setUser(JSON.parse(storedUser));
+    
+    const savedRules = localStorage.getItem("penal_rules");
+    if (savedRules) setPenalRules(JSON.parse(savedRules));
   }, []);
 
   useEffect(() => {
@@ -54,22 +58,25 @@ export default function RumeurDetailPage() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [rData, evRes] = await Promise.all([
+        const [rData, evRes, claimsRes, verdictsRes] = await Promise.all([
           RumorsService.getApiRumors1(id as string),
-          EvidenceService.getApiEvidence1(id as string).catch(() => [])
+          EvidenceService.getApiEvidence1(id as string).catch(() => []),
+          ClaimsService.getApiClaimsAll().catch(() => ({ data: [] })),
+          VerdictService.getApiVerdictsAll().catch(() => ({ data: [] }))
         ]);
 
         const rumorData = (rData as any).data || rData;
         setRumor(rumorData);
         
+        // --- Chargement des preuves ---
         let apiEvidences: Evidence[] = [];
-        // Charger les preuves depuis l'API dédiée
         const evData = Array.isArray(evRes) ? evRes : (evRes as any).data;
         if (evData && Array.isArray(evData)) {
           apiEvidences = evData.map((e: any, idx: number) => {
             const meta = e.metadata || {};
             return {
               id: e.id ? e.id.substring(0, 8) : `E${idx + 1}`,
+              realId: e.id || "",
               stance: (meta.stance || "NEUTRE").toUpperCase() as any,
               auteur: meta.auteur || e.uploader_name || "Anonyme",
               type: e.type || "text",
@@ -83,48 +90,40 @@ export default function RumeurDetailPage() {
           setEvidences(apiEvidences);
         }
 
-        // Tenter de charger l'audit pour les verdicts
-        try {
-           const auditData = await ClaimsService.getApiClaimsAudit(id as string);
-           setAuditLog(auditData);
-           if (auditData.claim_id) setClaimId(auditData.claim_id);
-           
-            if (auditData.timeline) {
-              const realVerdicts: Verdict[] = auditData.timeline
-                .filter(t => t.action?.includes("Verdict") || t.action === "VERDICT")
-                .map((t, idx) => ({
-                  id: `V${idx + 1}`,
-                  status: (t.details?.status || "CONTESTE").toUpperCase() as any,
-                  confiance: t.details?.confidence_score || 0.5,
-                  sources_pour: [],
-                  sources_contre: [],
-                  regle: t.details?.summary || "Règle appliquée",
-                  auteur: t.acteur || "Modérateur",
-                  date: t.timestamp ? new Date(t.timestamp).toLocaleTimeString() : "",
-                  supersede: idx > 0 ? `V${idx}` : null,
-                  note: t.details?.summary || ""
-                }));
-              setVerdicts(realVerdicts);
-              
-              // Optionnel : compléter les preuves si le timeline en contient de nouvelles
-              const auditEvidences = auditData.timeline
-                .filter(t => t.action?.includes("Evidence") || t.action === "EVIDENCE")
-                .map((t, idx) => ({
-                  id: t.details?.id ? t.details.id.substring(0, 8) : `AE${idx + 1}`,
-                  stance: (t.details?.stance || "NEUTRE").toUpperCase() as any,
-                  auteur: t.acteur || "Anonyme",
-                  type: t.details?.type || "text",
-                  t_event: "-", t_obs: "-", t_upload: t.timestamp ? new Date(t.timestamp).toLocaleTimeString() : "-",
-                  hash: t.details?.hash ? t.details.hash.substring(0, 10) : "-",
-                  detail: t.details?.detail || t.details?.text || "Preuve auditée"
-                }));
-              
-              if (auditEvidences.length > apiEvidences.length) {
-                setEvidences(auditEvidences);
-              }
-            }
-        } catch (e) { 
-          console.log("Données d'audit non disponibles"); 
+        // --- Chargement des verdicts via claims ---
+        const allClaims: Array<{ id: string; text: string; rumor_id: string }> = (claimsRes as any).data || [];
+        const allVerdicts: Array<any> = (verdictsRes as any).data || [];
+
+        // Trouver les claim IDs liés à cette rumeur
+        const rumorClaimIds = allClaims
+          .filter(c => c.rumor_id === (id as string))
+          .map(c => c.id);
+
+        if (rumorClaimIds.length > 0) {
+          // Stocker le premier claim trouvé pour les futures opérations
+          setClaimId(rumorClaimIds[0]);
+          localStorage.setItem(`claim_for_${id}`, rumorClaimIds[0]);
+        }
+
+        // Filtrer les verdicts correspondant aux claims de cette rumeur
+        const rumorVerdicts = allVerdicts
+          .filter(v => rumorClaimIds.includes(v.claim_id))
+          .sort((a, b) => new Date(a.published_at || 0).getTime() - new Date(b.published_at || 0).getTime());
+
+        if (rumorVerdicts.length > 0) {
+          const mappedVerdicts: Verdict[] = rumorVerdicts.map((v, idx) => ({
+            id: `V${idx + 1}`,
+            status: (v.status || "CONTESTE").toUpperCase() as any,
+            confiance: parseFloat(v.confidence_score) || 0.95,
+            sources_pour: v.evidences_for || [],
+            sources_contre: v.evidences_against || [],
+            regle: v.summary || "Règle appliquée",
+            auteur: v.moderator_name || "Modérateur",
+            date: v.published_at ? new Date(v.published_at).toLocaleString() : "",
+            supersede: idx > 0 ? `V${idx}` : null,
+            note: v.summary || ""
+          }));
+          setVerdicts(mappedVerdicts);
         }
 
       } catch (err) {
@@ -140,7 +139,11 @@ export default function RumeurDetailPage() {
   const [newEv, setNewEv] = useState<{ stance: string; type: string; auteur: string; detail: string; file: File | null }>({ 
     stance: "SUPPORTE", type: "text", auteur: "", detail: "", file: null 
   });
-  const [newVer, setNewVer] = useState({ status: "CONFIRME", note: "", regle: "" });
+  const [newVer, setNewVer] = useState({ 
+    status: "CONFIRME", note: "", regle: "", ruleId: "",
+    selectedEvFor: [] as string[],
+    selectedEvAgainst: [] as string[]
+  });
 
   const defaultVerdict: Verdict = {
     id: "V0",
@@ -200,8 +203,9 @@ export default function RumeurDetailPage() {
       });
       
       // Optimistic UI update instead of reload
-      const newEvObj = {
+      const newEvObj: Evidence = {
         id: "E" + Date.now().toString().substring(5),
+        realId: "pending-" + Math.random().toString(36).substring(2, 7),
         stance: newEv.stance.toUpperCase() as any,
         auteur: newEv.auteur || user?.name || "Modérateur",
         type: newEv.type,
@@ -255,13 +259,24 @@ export default function RumeurDetailPage() {
         "CONTESTE": "Contested"
       };
 
-      await VerdictService.postApiVerdicts({
+      const selectedRule = penalRules.find(r => r.id === newVer.ruleId);
+      const finalSummary = selectedRule 
+        ? `[${selectedRule.title}] ${newVer.note}` 
+        : newVer.note;
+
+      const verdictData: any = {
         claim_id: targetId,
         status: statusMap[newVer.status] || "Contested",
-        summary: newVer.note,
+        summary: finalSummary,
         confidence_score: 0.95,
-        moderator_id: user?.id || "moderator-unknown"
-      });
+        moderator_id: user?.id || "00000000-0000-0000-0000-000000000000", // Fallback sur un UUID valide si inconnu
+        is_published: true
+      };
+
+      if (newVer.selectedEvFor.length > 0) verdictData.evidences_for = newVer.selectedEvFor;
+      if (newVer.selectedEvAgainst.length > 0) verdictData.evidences_against = newVer.selectedEvAgainst;
+
+      await VerdictService.postApiVerdicts(verdictData);
       
       window.location.reload();
     } catch (err) {
@@ -399,12 +414,13 @@ export default function RumeurDetailPage() {
             {/* Ligne connectrice */}
             <div style={{ position: "absolute", left: 16, top: 20, bottom: 20, width: 2, background: C.slate200, zIndex: 0 }} />
 
-            {verdicts.map((v, i) => {
-              const isActive = i === verdicts.length - 1;
+            {[defaultVerdict, ...verdicts].map((v, i) => {
+              const isDefault = v.id === "V0";
+              const isActive = i === verdicts.length; // Le dernier élément est l'actif
               return (
                 <div key={v.id} style={{ display: "flex", gap: 16, position: "relative", zIndex: 1, marginBottom: 24 }}>
                   <div style={{ width: 34, height: 34, borderRadius: "50%", background: isActive ? C.blue600 : C.slate200, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontWeight: 700, fontSize: 13, border: `4px solid ${C.slate50}` }}>
-                    {v.id}
+                    {isDefault ? "0" : v.id}
                   </div>
                   <div style={{ background: "#fff", border: `1px solid ${isActive ? C.blue600 : C.slate200}`, borderRadius: 8, padding: 16, flex: 1, opacity: isActive ? 1 : 0.7 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
@@ -418,8 +434,7 @@ export default function RumeurDetailPage() {
                     )}
                     <p style={{ fontSize: 13, color: C.slate600, lineHeight: 1.5, marginBottom: 12 }}>{v.note}</p>
                     <div style={{ fontSize: 11, color: C.slate400, borderTop: `1px dashed ${C.slate200}`, paddingTop: 8 }}>
-                      <strong>Pour:</strong> {v.sources_pour.join(", ")} <br />
-                      <strong>Contre:</strong> {v.sources_contre.join(", ")} <br />
+                      <strong>Sources:</strong> {v.sources_pour.length + v.sources_contre.length} preuve(s) liée(s) <br />
                       <strong>Règle:</strong> {v.regle}
                     </div>
                   </div>
@@ -594,12 +609,50 @@ export default function RumeurDetailPage() {
                   </select>
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: C.slate700, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Règle de modération</label>
-                  <input required value={newVer.regle} onChange={e => setNewVer({ ...newVer, regle: e.target.value })} placeholder="Ex: Règle_v2.1..." style={{ width: "100%", padding: "12px 16px", background: "#fff", border: `1px solid ${C.slate200}`, borderRadius: 12, fontSize: 14, outline: "none" }} />
+                  <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: C.slate700, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Article Pénal de référence</label>
+                  <select value={newVer.ruleId} onChange={e => setNewVer({ ...newVer, ruleId: e.target.value })} style={{ width: "100%", padding: "12px 16px", background: "#fff", border: `1px solid ${C.slate200}`, borderRadius: 12, fontSize: 14, fontWeight: 500, outline: "none" }}>
+                    <option value="">Aucun article sélectionné</option>
+                    {penalRules.map(r => (
+                      <option key={r.id} value={r.id}>{r.title}</option>
+                    ))}
+                  </select>
+                  {penalRules.length === 0 && (
+                    <p style={{ fontSize: 11, color: C.slate500, marginTop: 4 }}>
+                      ⚠️ Aucune règle définie. <Link href="/moderateur/dashboard" style={{ color: C.blue600, fontWeight: 600 }}>Gérer les articles pénaux</Link>
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: C.slate700, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Note publique (Transparence)</label>
                   <textarea required value={newVer.note} onChange={e => setNewVer({ ...newVer, note: e.target.value })} rows={3} style={{ width: "100%", padding: "12px 16px", background: "#fff", border: `1px solid ${C.slate200}`, borderRadius: 12, fontSize: 14, outline: "none", fontFamily: "inherit", resize: "none" }} />
+                </div>
+
+                <div>
+                  <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: C.slate700, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Sélection des Preuves (Traçabilité)</label>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12, maxHeight: 200, overflowY: "auto", padding: 12, background: C.slate50, borderRadius: 12, border: `1px solid ${C.slate200}` }}>
+                    {evidences.map(ev => (
+                      <div key={ev.realId || ev.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 12 }}>
+                        <div style={{ flex: 1, color: C.slate700 }}>
+                          <span style={{ fontWeight: 700, color: ev.stance === "SUPPORTE" ? C.green600 : C.red600 }}>[{ev.id}]</span> {ev.detail.substring(0, 40)}...
+                        </div>
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
+                            <input type="checkbox" checked={newVer.selectedEvFor.includes(ev.realId)} onChange={e => {
+                              const list = e.target.checked ? [...newVer.selectedEvFor, ev.realId] : newVer.selectedEvFor.filter(id => id !== ev.realId);
+                              setNewVer({ ...newVer, selectedEvFor: list });
+                            }} /> Pour
+                          </label>
+                          <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
+                            <input type="checkbox" checked={newVer.selectedEvAgainst.includes(ev.realId)} onChange={e => {
+                              const list = e.target.checked ? [...newVer.selectedEvAgainst, ev.realId] : newVer.selectedEvAgainst.filter(id => id !== ev.realId);
+                              setNewVer({ ...newVer, selectedEvAgainst: list });
+                            }} /> Contre
+                          </label>
+                        </div>
+                      </div>
+                    ))}
+                    {evidences.length === 0 && <div style={{ fontSize: 12, color: C.slate400, textAlign: "center" }}>Aucune preuve disponible pour l'instant.</div>}
+                  </div>
                 </div>
                 <div style={{ fontSize: 12, color: C.slate500, background: "rgba(15,23,42,0.03)", padding: "12px 16px", borderRadius: 12, border: `1px dashed ${C.slate200}` }}>
                   💡 En validant, vous créerez le verdict <strong>V{verdicts.length + 1}</strong> qui supersèdera <strong>{activeVerdict.id}</strong>. L'historique sera conservé.

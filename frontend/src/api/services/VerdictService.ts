@@ -8,6 +8,17 @@ import { OpenAPI } from '../core/OpenAPI';
 import { request as __request } from '../core/request';
 export class VerdictService {
     /**
+     * Lister tous les verdicts
+     * @returns any Liste des verdicts
+     * @throws ApiError
+     */
+    public static getApiVerdictsAll(): CancelablePromise<{ success?: boolean; data?: Array<any>; total?: number; }> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/verdicts',
+        });
+    }
+    /**
      * Détail d'un verdict
      * @param id
      * @returns Verdict Verdict trouvé

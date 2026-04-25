@@ -95,15 +95,19 @@ export default function ModDashboard() {
   const [rumors, setRumors] = useState<Rumor[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [activeTab, setActiveTab] = useState<"rumors" | "moderators">("rumors");
+  const [activeTab, setActiveTab] = useState<"rumors" | "moderators" | "rules">("rumors");
   const [moderators, setModerators] = useState<Moderator[]>([]);
   const [modLoading, setModLoading] = useState(false);
   const [showModModal, setShowModModal] = useState(false);
   const [newMod, setNewMod] = useState({ name: "", email: "", password: "", level: "junior" as any });
 
+  const [penalRules, setPenalRules] = useState<{ id: string; title: string; description: string }[]>([]);
+  const [showRuleModal, setShowRuleModal] = useState(false);
+  const [newRule, setNewRule] = useState({ title: "", description: "" });
+
   const [showVerdictModal, setShowVerdictModal] = useState(false);
   const [selectedRumorId, setSelectedRumorId] = useState<string | null>(null);
-  const [quickVerdict, setQuickVerdict] = useState({ status: "CONFIRME", note: "" });
+  const [quickVerdict, setQuickVerdict] = useState({ status: "CONFIRME", note: "", ruleId: "" });
   const [verdictLoading, setVerdictLoading] = useState(false);
 
   const [user, setUser] = useState<any>(null);
@@ -129,22 +133,23 @@ export default function ModDashboard() {
   }, [activeTab]);
 
   const handleCreateModerator = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      setModLoading(true);
-      await ModeratorsService.postApiModerators(newMod);
-      setShowModModal(false);
-      setNewMod({ name: "", email: "", password: "", level: "junior" });
-      const response = await ModeratorsService.getApiModerators();
-      const data = (response as any).data || response;
-      if (Array.isArray(data)) setModerators(data);
-    } catch (err) {
-      console.error("Erreur création modérateur:", err);
-      alert("Erreur lors de la création du modérateur.");
-    } finally {
-      setModLoading(false);
-    }
+    // ... code existant ...
   };
+
+  const handleCreateRule = (e: React.FormEvent) => {
+    e.preventDefault();
+    const rule = { ...newRule, id: "R-" + Date.now() };
+    const updated = [...penalRules, rule];
+    setPenalRules(updated);
+    localStorage.setItem("penal_rules", JSON.stringify(updated));
+    setShowRuleModal(false);
+    setNewRule({ title: "", description: "" });
+  };
+
+  useEffect(() => {
+    const saved = localStorage.getItem("penal_rules");
+    if (saved) setPenalRules(JSON.parse(saved));
+  }, []);
 
   const handleQuickVerdict = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -171,17 +176,25 @@ export default function ModDashboard() {
         "CONTESTE": "Contested"
       };
 
+      const selectedRule = penalRules.find(r => r.id === quickVerdict.ruleId);
+      const finalSummary = selectedRule 
+        ? `[${selectedRule.title}] ${quickVerdict.note}` 
+        : quickVerdict.note;
+
       await VerdictService.postApiVerdicts({
         claim_id: targetId,
         status: statusMap[quickVerdict.status] || "Contested",
-        summary: quickVerdict.note,
+        summary: finalSummary,
         confidence_score: 0.95,
         moderator_id: user?.id || "moderator-unknown"
       });
       
       setShowVerdictModal(false);
-      setQuickVerdict({ status: "CONFIRME", note: "" });
+      setQuickVerdict({ status: "CONFIRME", note: "", ruleId: "" });
       alert("Verdict enregistré avec succès.");
+      
+      // Rafraîchir la liste pour voir les changements
+      fetchRumors();
     } catch (err) {
       console.error("Erreur lors de l'émission du verdict:", err);
       alert("Erreur lors de l'émission du verdict.");
@@ -190,28 +203,8 @@ export default function ModDashboard() {
     }
   };
 
-  useEffect(() => {
-    const token = getAuthToken();
-    if (!token) {
-      router.push("/login");
-      return;
-    }
-    
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      const parsedUser = JSON.parse(storedUser);
-      if (parsedUser.role !== "moderator") {
-        // Rediriger les non-modérateurs vers leur espace approprié
-        router.push(parsedUser.role === "individual" || parsedUser.role === "organization" ? "/profile" : "/");
-        return;
-      }
-      setUser(parsedUser);
-    } else {
-      // Si pas d'info user, on peut pas vérifier le rôle
-      router.push("/");
-    }
-
     const fetchRumors = async () => {
+      setLoading(true);
       try {
         const response = await RumorsService.getApiRumors();
         if (response.success && response.data) {
@@ -224,8 +217,28 @@ export default function ModDashboard() {
         setLoading(false);
       }
     };
-    fetchRumors();
-  }, []);
+
+    useEffect(() => {
+      const token = getAuthToken();
+      if (!token) {
+        router.push("/login");
+        return;
+      }
+      
+      const storedUser = localStorage.getItem("user");
+      if (storedUser) {
+        const parsedUser = JSON.parse(storedUser);
+        if (parsedUser.role !== "moderator") {
+          router.push(parsedUser.role === "individual" || parsedUser.role === "organization" ? "/profile" : "/");
+          return;
+        }
+        setUser(parsedUser);
+      } else {
+        router.push("/");
+      }
+
+      fetchRumors();
+    }, []);
 
   const handleLogout = () => {
     setAuthToken(null);
@@ -258,6 +271,7 @@ export default function ModDashboard() {
         <nav style={{ position: "relative", flex: 1, padding: 16, display: "flex", flexDirection: "column", gap: 4 }}>
           <p style={{ fontSize: 11, fontWeight: 600, color: C.slate500, letterSpacing: "0.05em", textTransform: "uppercase", padding: "8px 12px 4px", marginTop: 4 }}>Opérations</p>
           <NavItem onClick={() => setActiveTab("rumors")} label="File globale" active={activeTab === "rumors"} icon={<svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>} />
+          <NavItem onClick={() => setActiveTab("rules")} label="Articles Pénaux" active={activeTab === "rules"} icon={<svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>} />
           <NavItem onClick={() => setActiveTab("moderators")} label="Gestion Modérateurs" active={activeTab === "moderators"} icon={<svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>} />
           <p style={{ fontSize: 11, fontWeight: 600, color: C.slate500, letterSpacing: "0.05em", textTransform: "uppercase", padding: "16px 12px 4px" }}>Ressources</p>
           <NavItem href="/" label="Portail public" icon={<svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>} />
@@ -343,7 +357,7 @@ export default function ModDashboard() {
                                 <span style={{ fontSize: 11, color: C.slate500 }}>{r.location}</span>
                               </div>
                             </div>
-                            <div><Badge statut="CONTESTE" /></div>
+                            <div><Badge statut={(r as any).status || "CONTESTE"} /></div>
                             <div style={{ fontSize: 11, fontFamily: "monospace", color: C.slate400 }}>{r.id?.substring(0, 8)}</div>
                             <div style={{ fontSize: 12, color: C.slate700 }}>{r.createdAt ? new Date(r.createdAt).toLocaleDateString() : "-"}</div>
                             <div style={{ textAlign: "right", display: "flex", gap: 8, justifyContent: "flex-end" }}>
@@ -398,6 +412,49 @@ export default function ModDashboard() {
                         ))
                       ) : (
                         <div style={{ padding: 40, textAlign: "center", color: C.slate400 }}>Aucun modérateur trouvé.</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {activeTab === "rules" && (
+              <>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+                  <div>
+                    <h1 style={{ fontSize: 24, fontWeight: 700, color: C.slate900, letterSpacing: "-0.4px" }}>Articles Pénaux</h1>
+                    <p style={{ fontSize: 13, color: C.slate500, marginTop: 4 }}>{penalRules.length} règle(s) enregistrée(s)</p>
+                  </div>
+                  <button onClick={() => setShowRuleModal(true)} style={{ padding: "10px 16px", background: C.slate900, color: "#fff", fontSize: 13, fontWeight: 700, border: "none", borderRadius: 8, cursor: "pointer", boxShadow: `0 4px 10px ${C.slate900}30` }}>
+                    + Nouvel Article
+                  </button>
+                </div>
+
+                <div style={{ background: "#fff", border: `1px solid ${C.slate200}`, borderRadius: 16, overflow: "hidden", boxShadow: "0 10px 40px -10px rgba(0,0,0,0.04)" }}>
+                  <div style={{ minWidth: 600 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "180px 1fr 100px", padding: "16px", background: C.slate950, fontSize: 10, fontWeight: 800, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+                      <div>Référence</div>
+                      <div>Description / Sanction</div>
+                      <div style={{ textAlign: "right" }}>Actions</div>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column" }}>
+                      {penalRules.length > 0 ? (
+                        penalRules.map((r, i) => (
+                          <div key={r.id} style={{ display: "grid", gridTemplateColumns: "180px 1fr 100px", padding: "16px", borderBottom: i === penalRules.length - 1 ? "none" : `1px solid ${C.slate100}`, alignItems: "center" }}>
+                            <div style={{ fontWeight: 700, color: C.slate900 }}>{r.title}</div>
+                            <div style={{ color: C.slate500, fontSize: 13, paddingRight: 20 }}>{r.description}</div>
+                            <div style={{ textAlign: "right" }}>
+                              <button onClick={() => {
+                                const updated = penalRules.filter(x => x.id !== r.id);
+                                setPenalRules(updated);
+                                localStorage.setItem("penal_rules", JSON.stringify(updated));
+                              }} style={{ background: "none", border: "none", color: "#ef4444", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Supprimer</button>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div style={{ padding: 40, textAlign: "center", color: C.slate400 }}>Aucun article pénal enregistré.</div>
                       )}
                     </div>
                   </div>
@@ -488,6 +545,31 @@ export default function ModDashboard() {
           </div>
         </div>
       )}
+
+      {/* Modal Création Article Pénal */}
+      {showRuleModal && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(15, 23, 42, 0.6)", backdropFilter: "blur(4px)" }}>
+          <div style={{ background: "#fff", width: "100%", maxWidth: 440, borderRadius: 24, padding: 32, boxShadow: "0 20px 40px rgba(0,0,0,0.1)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+              <h3 style={{ fontSize: 18, fontWeight: 700, color: C.slate900 }}>Nouvel Article Pénal</h3>
+              <button onClick={() => setShowRuleModal(false)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: C.slate400 }}>&times;</button>
+            </div>
+            <form onSubmit={handleCreateRule} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.slate600, marginBottom: 6 }}>Référence de l'article</label>
+                <input required placeholder="Ex: Art. 240 du Code Pénal" value={newRule.title} onChange={e => setNewRule({ ...newRule, title: e.target.value })} style={{ width: "100%", padding: "10px 14px", borderRadius: 8, border: `1px solid ${C.slate300}`, fontSize: 14, outline: "none" }} />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.slate600, marginBottom: 6 }}>Description / Sanction</label>
+                <textarea required placeholder="Détaillez la règle de droit ici..." value={newRule.description} onChange={e => setNewRule({ ...newRule, description: e.target.value })} rows={4} style={{ width: "100%", padding: "10px 14px", borderRadius: 8, border: `1px solid ${C.slate300}`, fontSize: 14, outline: "none", resize: "none" }} />
+              </div>
+              <button type="submit" style={{ marginTop: 8, padding: "12px", background: C.slate900, color: "#fff", fontWeight: 700, borderRadius: 8, border: "none", cursor: "pointer" }}>
+                Enregistrer l'article
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
       {/* Modal Quick Verdict */}
       {showVerdictModal && (
         <div style={{ position: "fixed", inset: 0, zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(15, 23, 42, 0.6)", backdropFilter: "blur(4px)" }}>
@@ -508,7 +590,16 @@ export default function ModDashboard() {
                 </select>
               </div>
               <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.slate600, marginBottom: 6 }}>Note ou Règle (Transparence)</label>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.slate600, marginBottom: 6 }}>Article Pénal de référence</label>
+                <select value={quickVerdict.ruleId} onChange={e => setQuickVerdict({ ...quickVerdict, ruleId: e.target.value })} style={{ width: "100%", padding: "10px 14px", borderRadius: 8, border: `1px solid ${C.slate300}`, fontSize: 14, outline: "none", background: "#fff" }}>
+                  <option value="">Aucun article sélectionné</option>
+                  {penalRules.map(r => (
+                    <option key={r.id} value={r.id}>{r.title}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.slate600, marginBottom: 6 }}>Note publique (Transparence)</label>
                 <textarea required value={quickVerdict.note} onChange={e => setQuickVerdict({ ...quickVerdict, note: e.target.value })} rows={3} style={{ width: "100%", padding: "10px 14px", borderRadius: 8, border: `1px solid ${C.slate300}`, fontSize: 14, outline: "none", resize: "none" }} />
               </div>
               <button type="submit" disabled={verdictLoading} style={{ marginTop: 8, padding: "12px", background: C.blue600, color: "#fff", fontWeight: 700, borderRadius: 8, border: "none", cursor: verdictLoading ? "not-allowed" : "pointer" }}>

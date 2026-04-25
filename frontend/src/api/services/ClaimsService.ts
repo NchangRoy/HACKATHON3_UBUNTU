@@ -8,6 +8,17 @@ import { OpenAPI } from '../core/OpenAPI';
 import { request as __request } from '../core/request';
 export class ClaimsService {
     /**
+     * Lister tous les claims
+     * @returns any Liste des claims
+     * @throws ApiError
+     */
+    public static getApiClaimsAll(): CancelablePromise<{ success?: boolean; count?: number; data?: Array<{ id: string; text: string; rumor_id: string; }>; }> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/claims',
+        });
+    }
+    /**
      * Créer un claim atomique
      * @param requestBody
      * @returns any Claim créé
