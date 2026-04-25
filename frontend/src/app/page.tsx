@@ -147,7 +147,11 @@ function ClaimCard({ c }: { c: typeof claims[0] }) {
 
 export default function PublicHome() {
   return (
-    <div style={{ minHeight: "100vh", background: C.slate50, display: "flex", flexDirection: "column" }}>
+    <div style={{
+      minHeight: "100vh", backgroundColor: C.slate50, display: "flex", flexDirection: "column",
+      backgroundImage: "radial-gradient(#cbd5e1 2px, transparent 2px)",
+      backgroundSize: "24px 24px"
+    }}>
 
       {/* ── Navbar ── */}
       <header style={{ background: "#fff", borderBottom: `1px solid ${C.slate200}`, position: "sticky", top: 0, zIndex: 30 }}>

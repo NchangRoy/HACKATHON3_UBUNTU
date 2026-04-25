@@ -277,7 +277,7 @@ export default function ModDashboard() {
 
                     {/* Action */}
                     <div style={{ textAlign: "right" }}>
-                      <Link href={`/moderateur/rumeur/${c.id}`} style={{
+                      <Link href={`/rumeur/${c.id}`} style={{
                         display: "inline-block", padding: "6px 12px", border: `1px solid ${C.slate300}`, borderRadius: 4,
                         fontSize: 11, fontWeight: 600, color: C.slate700, textDecoration: "none", background: "#fff", transition: "all .1s"
                       }}
