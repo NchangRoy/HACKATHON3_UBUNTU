@@ -33,7 +33,7 @@ function Logo({ size = 28 }: { size?: number }) {
         flexShrink: 0,
       }}>
         <svg width={size * 0.55} height={size * 0.55} viewBox="0 0 24 24" fill="none">
-          <path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </div>
       <span style={{ fontWeight: 700, fontSize: 16, color: C.slate900, letterSpacing: "-0.3px" }}>FakeCheckAI</span>
@@ -98,7 +98,26 @@ export default function LoginPage() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", background: "#fff" }}>
+    <div style={{ minHeight: "100vh", display: "flex", background: "#fff", position: "relative" }}>
+      {/* Bouton Retour (Top Right) */}
+      <Link href="/" style={{
+        position: "fixed", top: 12, right: 12, zIndex: 100,
+        display: "flex", alignItems: "center", gap: 6,
+        padding: "8px 14px", background: "rgba(255,255,255,0.8)", 
+        backdropFilter: "blur(12px)", border: `1px solid ${C.slate200}`,
+        borderRadius: 12, textDecoration: "none", color: C.slate700,
+        fontSize: 12, fontWeight: 700, transition: "all .2s",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.05)"
+      }}
+        onMouseEnter={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.transform = "translateY(-1px)"; }}
+        onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.8)"; e.currentTarget.style.transform = "translateY(0)"; }}
+      >
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+        </svg>
+        Retour
+      </Link>
+
       {/* ── Colonne gauche (branding) ── */}
       <div id="login-sidebar" style={{
         display: "none", width: "40%", flexShrink: 0,
@@ -115,27 +134,25 @@ export default function LoginPage() {
           backgroundSize: "32px 32px"
         }} />
 
+
+
         <div style={{ position: "relative" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 32, height: 32, background: "rgba(255,255,255,0.1)", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
-            <span style={{ color: "#fff", fontWeight: 700, fontSize: 16, letterSpacing: "-0.2px" }}>FakeCheckAI</span>
+            <img src="/logo.png" alt="Logo" style={{ width: 32, height: 32, borderRadius: 8 }} />
+            <span style={{ color: "#fff", fontWeight: 800, fontSize: 18, letterSpacing: "-0.5px" }}>FakeCheckAI</span>
           </div>
         </div>
 
         <div style={{ position: "relative" }}>
           <h1 style={{ fontSize: 32, fontWeight: 700, color: "#fff", lineHeight: 1.2, letterSpacing: "-0.5px", marginBottom: 16 }}>
-            La vérité,<br/>documentée<br/>et traçable.
+            La vérité,<br />documentée<br />et traçable.
           </h1>
           <p style={{ color: C.slate400, fontSize: 14, lineHeight: 1.6, maxWidth: 320, marginBottom: 40 }}>
             Plateforme collaborative de fact-checking. Sécurisée, versionnée et entièrement auditable.
           </p>
 
           <div style={{ display: "flex", gap: 32, borderTop: `1px solid ${C.slate800}`, paddingTop: 24 }}>
-            {[["98%","Précision ML"],["< 2s","Temps réel"],["100%","Auditabilité"]].map(([v, l]) => (
+            {[["98%", "Précision ML"], ["< 2s", "Temps réel"], ["100%", "Auditabilité"]].map(([v, l]) => (
               <div key={l}>
                 <div style={{ fontSize: 20, fontWeight: 700, color: "#fff" }}>{v}</div>
                 <div style={{ fontSize: 12, color: C.slate400, marginTop: 2 }}>{l}</div>
@@ -150,7 +167,12 @@ export default function LoginPage() {
       </div>
 
       {/* ── Colonne droite (formulaire) ── */}
-      <main style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: "32px 24px", background: C.slate50 }}>
+      <main style={{ 
+        flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", 
+        padding: "32px 24px", background: C.slate50,
+        backgroundImage: `radial-gradient(${C.slate300} 2px, transparent 2px)`,
+        backgroundSize: "24px 24px"
+      }}>
         <div style={{ width: "100%", maxWidth: 360, background: "#fff", padding: 32, borderRadius: 8, border: `1px solid ${C.slate200}`, boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
           <div style={{ marginBottom: 32 }}>
             <Logo />
@@ -169,7 +191,7 @@ export default function LoginPage() {
               padding: "10px 12px", marginBottom: 20,
             }}>
               <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke={C.red600} strokeWidth={2.5} style={{ flexShrink: 0 }}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <span style={{ fontSize: 13, color: C.red600, fontWeight: 500 }}>{error}</span>
             </div>
@@ -208,8 +230,8 @@ export default function LoginPage() {
                 width: "100%", padding: "10px", background: loading ? C.slate300 : C.slate900,
                 color: "#fff", borderRadius: 6, fontWeight: 600, fontSize: 14,
                 marginTop: 8, display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                transition: "background .15s", cursor: loading ? "not-allowed" : "pointer",
-                border: "none"
+                transition: "all .15s", cursor: loading ? "not-allowed" : "pointer",
+                border: "none", boxShadow: loading ? "none" : `0 4px 12px ${C.slate900}20`
               }}
               onMouseEnter={e => { if (!loading) (e.currentTarget.style.background = C.slate800); }}
               onMouseLeave={e => { if (!loading) (e.currentTarget.style.background = C.slate900); }}
@@ -217,8 +239,8 @@ export default function LoginPage() {
               {loading ? (
                 <>
                   <svg style={{ animation: "spin .8s linear infinite" }} width="16" height="16" fill="none" viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.3)" strokeWidth="3"/>
-                    <path d="M22 12a10 10 0 00-10-10" stroke="#fff" strokeWidth="3" strokeLinecap="round"/>
+                    <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.3)" strokeWidth="3" />
+                    <path d="M22 12a10 10 0 00-10-10" stroke="#fff" strokeWidth="3" strokeLinecap="round" />
                   </svg>
                   Authentification…
                 </>
@@ -254,7 +276,7 @@ export default function LoginPage() {
             </div>
           </div>
         </div>
-        
+
         <p style={{ textAlign: "center", fontSize: 13, color: C.slate500, marginTop: 24 }}>
           Aucun accès ?{" "}
           <Link href="/register" style={{ color: C.slate900, fontWeight: 600, textDecoration: "none" }}>Demander un compte</Link>

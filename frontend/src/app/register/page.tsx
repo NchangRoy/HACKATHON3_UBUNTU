@@ -13,21 +13,21 @@ const C = {
 type Role = "CITIZEN" | "JOURNALIST" | "MODERATOR";
 
 const ROLES: { value: Role; icon: React.ReactNode; label: string; desc: string }[] = [
-  { 
-    value: "CITIZEN", 
-    label: "Citoyen", 
+  {
+    value: "CITIZEN",
+    label: "Citoyen",
     desc: "Soumettre des signalements et consulter les verdicts",
     icon: <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
   },
-  { 
-    value: "JOURNALIST", 
-    label: "Journaliste", 
+  {
+    value: "JOURNALIST",
+    label: "Journaliste",
     desc: "Ajouter des preuves sourcées et enrichir les claims",
     icon: <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
   },
-  { 
-    value: "MODERATOR", 
-    label: "Modérateur", 
+  {
+    value: "MODERATOR",
+    label: "Modérateur",
     desc: "Rendre des verdicts et gérer la file de traitement",
     icon: <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
   },
@@ -43,7 +43,7 @@ function Logo({ size = 28 }: { size?: number }) {
         flexShrink: 0,
       }}>
         <svg width={size * 0.55} height={size * 0.55} viewBox="0 0 24 24" fill="none">
-          <path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </div>
       <span style={{ fontWeight: 700, fontSize: 16, color: C.slate900, letterSpacing: "-0.3px" }}>FakeCheckAI</span>
@@ -105,7 +105,26 @@ export default function RegisterPage() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", background: "#fff" }}>
+    <div style={{ minHeight: "100vh", display: "flex", background: "#fff", position: "relative" }}>
+      {/* Bouton Retour (Top Right) */}
+      <Link href="/" style={{
+        position: "fixed", top: 12, right: 12, zIndex: 100,
+        display: "flex", alignItems: "center", gap: 6,
+        padding: "8px 14px", background: "rgba(255,255,255,0.8)", 
+        backdropFilter: "blur(12px)", border: `1px solid ${C.slate200}`,
+        borderRadius: 12, textDecoration: "none", color: C.slate700,
+        fontSize: 12, fontWeight: 700, transition: "all .2s",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.05)"
+      }}
+        onMouseEnter={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.transform = "translateY(-1px)"; }}
+        onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.8)"; e.currentTarget.style.transform = "translateY(0)"; }}
+      >
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+        </svg>
+        Retour
+      </Link>
+
       {/* ── Colonne gauche ── */}
       <div id="register-sidebar" style={{
         display: "none", width: "40%", flexShrink: 0,
@@ -122,25 +141,21 @@ export default function RegisterPage() {
 
         <div style={{ position: "relative" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 32, height: 32, background: "rgba(255,255,255,0.1)", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
-            <span style={{ color: "#fff", fontWeight: 700, fontSize: 16 }}>FakeCheckAI</span>
+            <img src="/logo.png" alt="Logo" style={{ width: 32, height: 32, borderRadius: 8 }} />
+            <span style={{ color: "#fff", fontWeight: 800, fontSize: 18, letterSpacing: "-0.5px" }}>FakeCheckAI</span>
           </div>
         </div>
 
         <div style={{ position: "relative" }}>
           <h1 style={{ fontSize: 32, fontWeight: 700, color: "#fff", lineHeight: 1.2, letterSpacing: "-0.5px", marginBottom: 14 }}>
-            Rejoignez la<br/>communauté du<br/>fact-checking.
+            Rejoignez la<br />communauté du<br />fact-checking.
           </h1>
           <p style={{ color: C.slate400, fontSize: 14, lineHeight: 1.7, maxWidth: 300, marginBottom: 36 }}>
             Citoyen, journaliste ou modérateur — chaque acteur joue un rôle précis dans la vérification collaborative.
           </p>
           {/* Stepper */}
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            {[{n:1,label:"Identité et structure"},{n:2,label:"Rôle et authentification"}].map(s => (
+            {[{ n: 1, label: "Identité et structure" }, { n: 2, label: "Rôle et authentification" }].map(s => (
               <div key={s.n} style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <div style={{
                   width: 24, height: 24, borderRadius: "50%", flexShrink: 0,
@@ -166,17 +181,22 @@ export default function RegisterPage() {
       </div>
 
       {/* ── Colonne droite ── */}
-      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "32px 24px", background: C.slate50 }}>
+      <div style={{ 
+        flex: 1, display: "flex", alignItems: "center", justifyContent: "center", 
+        padding: "32px 24px", background: C.slate50,
+        backgroundImage: `radial-gradient(${C.slate300} 2px, transparent 2px)`,
+        backgroundSize: "24px 24px"
+      }}>
         <div style={{ width: "100%", maxWidth: 440, background: "#fff", padding: 32, borderRadius: 8, border: `1px solid ${C.slate200}`, boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
           <div style={{ marginBottom: 32 }}>
             <Logo />
-            
+
             <div style={{ display: "flex", gap: 4, marginBottom: 24, marginTop: 28 }}>
               {[1, 2].map(n => (
                 <div key={n} style={{ flex: 1, height: 3, borderRadius: 2, background: step >= n ? C.blue600 : C.slate100, transition: "background .3s" }} />
               ))}
             </div>
-            
+
             <p style={{ fontSize: 12, fontWeight: 600, color: C.blue600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>Étape {step} sur 2</p>
             <h2 style={{ fontSize: 20, fontWeight: 700, color: C.slate900, letterSpacing: "-0.3px" }}>
               {step === 1 ? "Informations personnelles" : "Définition du profil"}
@@ -284,8 +304,8 @@ export default function RegisterPage() {
                 >
                   {loading ? (
                     <><svg style={{ animation: "spin .8s linear infinite" }} width="16" height="16" fill="none" viewBox="0 0 24 24">
-                      <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.3)" strokeWidth="3"/>
-                      <path d="M22 12a10 10 0 00-10-10" stroke="#fff" strokeWidth="3" strokeLinecap="round"/>
+                      <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.3)" strokeWidth="3" />
+                      <path d="M22 12a10 10 0 00-10-10" stroke="#fff" strokeWidth="3" strokeLinecap="round" />
                     </svg>Création…</>
                   ) : "Créer l'accès"}
                 </button>
