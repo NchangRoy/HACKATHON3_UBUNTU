@@ -19,19 +19,19 @@ type Statut = "CONTESTE" | "PROB_VRAI" | "PROB_FAUX" | "CONFIRME" | "REFUTE";
 
 const statusMap: Record<string, { label: string; bg: string; color: string; dot: string; accent: string }> = {
   // Valeurs backend
-  TRUE:          { label: "✓ Confirmé",        bg: "#f0fdf4", color: "#166534", dot: "#16a34a", accent: "#22c55e" },
-  FALSE:         { label: "✗ Réfuté",           bg: "#fef2f2", color: "#991b1b", dot: "#ef4444", accent: "#ef4444" },
-  PROBABLYTRUE:  { label: "~ Prob. Vrai",       bg: "#eff6ff", color: "#1e40af", dot: "#3b82f6", accent: "#60a5fa" },
-  CONTESTED:     { label: "⚠ Contesté",         bg: "#fefce8", color: "#854d0e", dot: "#ca8a04", accent: "#eab308" },
-  UNVERIFIABLE:  { label: "○ Non vérifiable",   bg: "#f1f5f9", color: "#475569", dot: "#94a3b8", accent: "#94a3b8" },
+  TRUE: { label: "✓ Confirmé", bg: "#f0fdf4", color: "#166534", dot: "#16a34a", accent: "#22c55e" },
+  FALSE: { label: "✗ Réfuté", bg: "#fef2f2", color: "#991b1b", dot: "#ef4444", accent: "#ef4444" },
+  PROBABLYTRUE: { label: "~ Prob. Vrai", bg: "#eff6ff", color: "#1e40af", dot: "#3b82f6", accent: "#60a5fa" },
+  CONTESTED: { label: "⚠ Contesté", bg: "#fefce8", color: "#854d0e", dot: "#ca8a04", accent: "#eab308" },
+  UNVERIFIABLE: { label: "○ Non vérifiable", bg: "#f1f5f9", color: "#475569", dot: "#94a3b8", accent: "#94a3b8" },
   // Valeurs locales legacy
-  CONTESTE:   { label: "⚠ Contesté",         bg: "#fefce8", color: "#854d0e", dot: "#ca8a04", accent: "#eab308" },
-  PROB_VRAI:  { label: "~ Prob. Vrai",       bg: "#f0fdf4", color: "#166534", dot: "#16a34a", accent: "#22c55e" },
-  PROB_FAUX:  { label: "Prob. Faux",         bg: "#fff7ed", color: "#9a3412", dot: "#ea580c", accent: "#f97316" },
-  CONFIRME:   { label: "✓ Confirmé",         bg: "#f0fdf4", color: "#166534", dot: "#15803d", accent: "#16a34a" },
-  REFUTE:     { label: "✗ Réfuté",           bg: "#fef2f2", color: "#991b1b", dot: "#ef4444", accent: "#ef4444" },
+  CONTESTE: { label: "⚠ Contesté", bg: "#fefce8", color: "#854d0e", dot: "#ca8a04", accent: "#eab308" },
+  PROB_VRAI: { label: "~ Prob. Vrai", bg: "#f0fdf4", color: "#166534", dot: "#16a34a", accent: "#22c55e" },
+  PROB_FAUX: { label: "Prob. Faux", bg: "#fff7ed", color: "#9a3412", dot: "#ea580c", accent: "#f97316" },
+  CONFIRME: { label: "✓ Confirmé", bg: "#f0fdf4", color: "#166534", dot: "#15803d", accent: "#16a34a" },
+  REFUTE: { label: "✗ Réfuté", bg: "#fef2f2", color: "#991b1b", dot: "#ef4444", accent: "#ef4444" },
   // Défaut
-  DEFAULT:    { label: "● À analyser",       bg: "#f1f5f9", color: "#475569", dot: "#94a3b8", accent: "#94a3b8" },
+  DEFAULT: { label: "● À analyser", bg: "#f1f5f9", color: "#475569", dot: "#94a3b8", accent: "#94a3b8" },
 };
 
 const claims = [
@@ -146,7 +146,7 @@ export default function PublicHome() {
     setIsLoggedIn(!!token);
     const storedUser = localStorage.getItem("user");
     if (storedUser) setUser(JSON.parse(storedUser));
-    
+
     fetchThemes();
   }, []);
 
@@ -170,12 +170,12 @@ export default function PublicHome() {
         VerdictService.getApiVerdictsAll().catch(() => ({ data: [] }))
       ]);
       let data = res.data || (Array.isArray(res) ? res : []);
-      
+
       // Filtrage de secours côté client si le backend renvoie tout
       if (tid) {
         data = data.filter((r: any) => String(r.theme_id) === String(tid));
       }
-      
+
       setRumors(data);
 
       // Construire la map rumorId → dernier statut verdict
@@ -233,16 +233,20 @@ export default function PublicHome() {
         <div style={{ padding: "0 24px", height: 60, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <Link href="/" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none" }}>
             <img src="/logo.png" alt="Logo" style={{ width: 32, height: 32, borderRadius: 8 }} />
-            <span style={{ fontWeight: 800, fontSize: 18, color: C.slate900, letterSpacing: "-0.5px" }}>FakeCheckAI</span>
+            <span style={{ fontWeight: 800, fontSize: 18, color: C.slate900, letterSpacing: "-0.5px" }}>FakeCheck</span>
           </Link>
 
           <nav style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            {["Rumeurs", "Méthode", "Docs"].map(n => (
-              <Link key={n} href="#" style={{ padding: "8px 12px", fontSize: 13, fontWeight: 600, color: C.slate600, borderRadius: 8, textDecoration: "none", transition: "all .2s" }}
+            {[
+              { label: "Rumeurs", href: "/#registre" },
+              { label: "Méthode", href: "/methode" },
+              { label: "Docs", href: "/docs" }
+            ].map(n => (
+              <Link key={n.label} href={n.href} style={{ padding: "8px 12px", fontSize: 13, fontWeight: 600, color: C.slate600, borderRadius: 8, textDecoration: "none", transition: "all .2s" }}
                 onMouseEnter={e => { e.currentTarget.style.color = C.slate900; e.currentTarget.style.background = C.slate100; }}
                 onMouseLeave={e => { e.currentTarget.style.color = C.slate600; e.currentTarget.style.background = "transparent"; }}
               >
-                {n}
+                {n.label}
               </Link>
             ))}
             <div style={{ width: 1, height: 16, background: C.slate200, margin: "0 10px" }} />
@@ -308,7 +312,7 @@ export default function PublicHome() {
             }}>Atomisez la désinformation.</span>
           </h1>
           <p style={{ fontSize: 20, color: C.slate300, maxWidth: 650, lineHeight: 1.6, marginBottom: 44, fontWeight: 500 }}>
-            FakeCheckAI combine l'analyse prédictive IA et une modération humaine traçable pour déconstruire les rumeurs à la source sur un registre immuable.
+            FakeCheck combine l'analyse prédictive IA et une modération humaine traçable pour déconstruire les rumeurs à la source sur un registre immuable.
           </p>
 
           <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
@@ -405,9 +409,9 @@ export default function PublicHome() {
           {/* Filtres catégories (Modern Pills) */}
           <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10, marginBottom: 40 }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: C.slate400, marginRight: 8 }}>Filtrer par :</span>
-            
+
             {/* Bouton "Tous" */}
-            <button 
+            <button
               onClick={() => setActiveThemeId(null)}
               style={{
                 padding: "10px 20px", borderRadius: 100, fontSize: 14, fontWeight: 700,
@@ -423,7 +427,7 @@ export default function PublicHome() {
 
             {/* Thèmes dynamiques depuis la BD (filtrage des doublons par nom) */}
             {Array.from(new Map(themes.map(t => [t.name || t.title, t])).values()).map(t => (
-              <button key={t.id} 
+              <button key={t.id}
                 onClick={() => setActiveThemeId(t.id)}
                 style={{
                   padding: "10px 20px", borderRadius: 100, fontSize: 14, fontWeight: 700,
