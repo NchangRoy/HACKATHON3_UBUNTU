@@ -13,17 +13,21 @@ import { pool } from "./config/db";
 const app: Express = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Swagger Documentation
+// ✅ Swagger — un seul montage, toujours actif (y compris en production)
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
   swaggerOptions: {
     persistAuthorization: true,
-    displayOperationId: true
-  }
+    displayOperationId: true,
+  },
 }));
+
+app.get("/swagger.json", (_req, res) => {
+  res.setHeader("Content-Type", "application/json");
+  res.send(swaggerSpec);
+});
 
 // Routes
 app.use("/api/auth", authRoutes);
@@ -31,7 +35,6 @@ app.use("/api/rumors", rumorRoutes);
 app.use("/api/themes", themeRoutes);
 app.use("/api/claims", claimRoutes);
 
-// Health check endpoint
 app.get("/health", async (_req, res) => {
   try {
     await pool.query("SELECT 1");
@@ -39,73 +42,44 @@ app.get("/health", async (_req, res) => {
       status: "OK",
       message: "Server is running",
       database: "connected",
-      timestamp: new Date()
+      timestamp: new Date(),
     });
   } catch {
     res.status(500).json({
       status: "ERROR",
       message: "Database connection failed",
-      timestamp: new Date()
+      timestamp: new Date(),
     });
   }
 });
 
-// Swagger JSON (IMPORTANT pour Vercel)
-app.get("/swagger.json", (_req, res) => {
-  res.setHeader("Content-Type", "application/json");
-  res.send(swaggerSpec);
-});
-
-// Swagger UI seulement en local
-if (process.env.NODE_ENV !== "production") {
-  app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-}
-
-// Root endpoint
 app.get("/", (_req, res) => {
   res.status(200).json({
     message: "Hackverse - Fact-Checking API",
     version: "1.0.0",
-    documentation: `http://localhost:${PORT}/api-docs`
+    documentation: "/api-docs",  // URL relative, fonctionne partout
   });
 });
 
-// 404 Handler
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: "Endpoint non trouvé",
-    path: req.path
-  });
-});
-
-// Error Handler
-app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err.stack);
   res.status(500).json({
     success: false,
     message: "Erreur serveur interne",
-    error: process.env.NODE_ENV === "development" ? err.message : undefined
+    error: process.env.NODE_ENV === "development" ? err.message : undefined,
   });
 });
 
-// Start server + test DB connection
-async function start() {
-  try {
-    await pool.connect();
-    console.log("✅ PostgreSQL connecté");
-  } catch (err) {
-    console.error("❌ Impossible de se connecter à PostgreSQL :", err);
-    console.warn("⚠️  Démarrage sans connexion DB — vérifie ton .env");
-  }
+// En local seulement — Vercel n'a pas besoin de listen()
+if (process.env.NODE_ENV !== "production") {
+  pool.connect()
+    .then(() => console.log("PostgreSQL connecté"))
+    .catch((err) => console.warn("DB non connectée :", err));
 
   app.listen(PORT, () => {
-    console.log(`✅ Serveur démarré sur http://localhost:${PORT}`);
-    console.log(`📚 Documentation Swagger: http://localhost:${PORT}/api-docs`);
-    console.log(`💚 Health check: http://localhost:${PORT}/health`);
+    console.log(`Serveur démarré sur http://localhost:${PORT}`);
+    console.log(`Swagger: http://localhost:${PORT}/api-docs`);
   });
 }
-
-start();
 
 export default app;
