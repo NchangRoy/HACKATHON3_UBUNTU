@@ -1,6 +1,9 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { AuthService } from "@/api";
+import { setAuthToken } from "@/services/api-client";
 
 const C = {
   blue600: "#2563eb", blue700: "#1d4ed8", blue50: "#eff6ff", blue100: "#dbeafe",
@@ -87,14 +90,52 @@ export default function LoginPage() {
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  const router = useRouter();
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("registered")) {
+      setSuccess("Compte créé avec succès ! Connectez-vous pour continuer.");
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     if (!email || !password) { setError("Veuillez remplir tous les champs obligatoires."); return; }
+    
     setLoading(true);
-    await new Promise(r => setTimeout(r, 1200));
-    setLoading(false);
+    try {
+      const response = await AuthService.postApiAuthLogin({ email, password });
+      if (response.success && response.token) {
+        setAuthToken(response.token);
+        
+        // Stocker les infos utilisateur de base
+        if (response.user) {
+          localStorage.setItem("user", JSON.stringify(response.user));
+          
+          // Redirection basée sur le rôle
+          const role = response.user.role;
+          if (role === "individual" || role === "organization") {
+            router.push("/profile");
+          } else {
+            router.push("/moderateur/dashboard");
+          }
+        } else {
+          router.push("/");
+        }
+      } else {
+        setError("Une erreur inattendue est survenue.");
+      }
+    } catch (err: any) {
+      console.error(err);
+      const detail = err.body?.message || err.body?.detail || (typeof err.body === 'string' ? err.body : null);
+      setError(detail || "Identifiants invalides. Veuillez réessayer.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -194,6 +235,19 @@ export default function LoginPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <span style={{ fontSize: 13, color: C.red600, fontWeight: 500 }}>{error}</span>
+            </div>
+          )}
+
+          {success && (
+            <div style={{
+              display: "flex", alignItems: "center", gap: 8,
+              background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 6,
+              padding: "10px 12px", marginBottom: 20,
+            }}>
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#16a34a" strokeWidth={2.5} style={{ flexShrink: 0 }}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+              <span style={{ fontSize: 13, color: "#166534", fontWeight: 500 }}>{success}</span>
             </div>
           )}
 

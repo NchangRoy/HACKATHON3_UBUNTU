@@ -14,6 +14,8 @@ export const metadata: Metadata = {
     "Plateforme collaborative de vérification des faits assistée par intelligence artificielle. Détectez, analysez et réfutez les rumeurs en temps réel.",
 };
 
+import { ClientInitializer } from "./ClientInitializer";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -22,6 +24,7 @@ export default function RootLayout({
   return (
     <html lang="fr" className={`${inter.variable} h-full`}>
       <body className="min-h-full bg-white text-gray-900 antialiased">
+        <ClientInitializer />
         {children}
       </body>
     </html>

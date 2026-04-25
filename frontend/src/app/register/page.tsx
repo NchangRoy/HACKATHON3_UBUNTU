@@ -1,6 +1,9 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { AuthService } from "@/api";
+import { setAuthToken } from "@/services/api-client";
 
 const C = {
   blue600: "#2563eb", blue700: "#1d4ed8", blue50: "#eff6ff", blue100: "#dbeafe",
@@ -51,13 +54,17 @@ function Logo({ size = 28 }: { size?: number }) {
   );
 }
 
-function Field({ id, label, type = "text", value, onChange, placeholder, error, half }: {
+function Field({ id, label, type = "text", value, onChange, placeholder, error, half, hint }: {
   id: string; label: string; type?: string; value: string;
   onChange: (v: string) => void; placeholder?: string; error?: string; half?: boolean;
+  hint?: React.ReactNode;
 }) {
   return (
     <div style={{ flex: half ? "1 1 calc(50% - 6px)" : "1 1 100%" }}>
-      <label htmlFor={id} style={{ display: "block", fontSize: 13, fontWeight: 600, color: C.slate700, marginBottom: 6 }}>{label}</label>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+        <label htmlFor={id} style={{ display: "block", fontSize: 13, fontWeight: 600, color: C.slate700 }}>{label}</label>
+        {hint}
+      </div>
       <input
         id={id} type={type} value={value} required
         onChange={e => onChange(e.target.value)}
@@ -78,7 +85,7 @@ function Field({ id, label, type = "text", value, onChange, placeholder, error, 
 
 export default function RegisterPage() {
   const [step, setStep] = useState<1 | 2>(1);
-  const [form, setForm] = useState({ fullName: "", email: "", roleType: "Individu", password: "", confirm: "" });
+  const [form, setForm] = useState({ fullName: "", email: "", phone: "", roleType: "Individu", password: "", confirm: "" });
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -92,6 +99,8 @@ export default function RegisterPage() {
     return !Object.keys(e).length;
   };
 
+  const router = useRouter();
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const er: Record<string, string> = {};
@@ -99,9 +108,40 @@ export default function RegisterPage() {
     if (form.password !== form.confirm) er.confirm = "Les mots de passe ne correspondent pas";
     setErrors(er);
     if (Object.keys(er).length) return;
+
     setLoading(true);
-    await new Promise(r => setTimeout(r, 1500));
-    setLoading(false);
+    try {
+      const response = await AuthService.postApiAuthRegister({
+        name: form.fullName,
+        email: form.email,
+        password: form.password,
+        phone: form.phone,
+        role: form.roleType === "Individu" ? "individual" : "organization"
+      });
+
+      if (response.success) {
+        // Rediriger vers la connexion au lieu du dashboard
+        router.push("/login?registered=true");
+      } else {
+        setErrors({ general: "Une erreur est survenue lors de l'inscription." });
+      }
+    } catch (err: any) {
+      console.error(err);
+      if (err.body && typeof err.body === 'object' && !err.body.message) {
+        // Le serveur renvoie des erreurs par champ : { email: ["..."], phone: ["..."] }
+        const fieldErrors: Record<string, string> = {};
+        for (const key in err.body) {
+          const val = err.body[key];
+          fieldErrors[key] = Array.isArray(val) ? val[0] : String(val);
+        }
+        setErrors(fieldErrors);
+      } else {
+        const detail = err.body?.message || err.body?.detail || "Vérifiez les informations saisies.";
+        setErrors({ general: detail });
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -206,11 +246,34 @@ export default function RegisterPage() {
             </p>
           </div>
 
+          {errors.general && (
+            <div style={{
+              display: "flex", alignItems: "center", gap: 8,
+              background: C.red50, border: `1px solid ${C.red200}`, borderRadius: 6,
+              padding: "10px 12px", marginBottom: 20,
+            }}>
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke={C.red600} strokeWidth={2.5} style={{ flexShrink: 0 }}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span style={{ fontSize: 13, color: C.red600, fontWeight: 500 }}>{errors.general}</span>
+            </div>
+          )}
+
           {/* ── ÉTAPE 1 ── */}
           {step === 1 && (
             <form onSubmit={e => { e.preventDefault(); if (step1Valid()) setStep(2); }} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <Field id="fullName" label="Nom complet" value={form.fullName} onChange={v => set("fullName", v)} placeholder="Jean Dupont" error={errors.fullName} />
               <Field id="email" label="Adresse email" type="email" value={form.email} onChange={v => set("email", v)} placeholder="nom@exemple.com" error={errors.email} />
+              <Field 
+                id="phone" 
+                label="Téléphone" 
+                type="tel" 
+                value={form.phone} 
+                onChange={v => set("phone", v)} 
+                placeholder="+237 6XX XXX XXX" 
+                error={errors.phone} 
+                hint={<span style={{ fontSize: 10, fontWeight: 500, color: C.slate400 }}>Format international (ex: +2376...)</span>}
+              />
               <div>
                 <label htmlFor="roleType" style={{ display: "block", fontSize: 13, fontWeight: 600, color: C.slate700, marginBottom: 6 }}>
                   Rôle

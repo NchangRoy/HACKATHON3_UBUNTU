@@ -1,5 +1,11 @@
 "use client";
+
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { RumorsService, ThemesService } from "@/api";
+import type { Rumor } from "@/api";
+import { getAuthToken, setAuthToken } from "@/services/api-client";
 
 const C = {
   blue500: "#3b82f6", blue600: "#2563eb", blue700: "#1d4ed8", blue50: "#eff6ff", blue100: "#dbeafe",
@@ -34,10 +40,11 @@ const catColors: Record<string, { bg: string; color: string }> = {
   "Environnement": { bg: "#f0fdf4", color: "#166534" },
 };
 
-function ClaimCard({ c }: { c: typeof claims[0] }) {
-  const s = statusMap[c.statut];
-  const cat = catColors[c.cat] ?? { bg: C.slate100, color: C.slate700 };
-  const mlColor = c.score_ml < 0.3 ? "#ef4444" : c.score_ml < 0.5 ? "#f97316" : "#22c55e";
+function ClaimCard({ c }: { c: Rumor }) {
+  const s = statusMap["CONTESTE"]; // Valeur par défaut
+  const cat = catColors["Santé"]; // Valeur par défaut
+
+  const timeLabel = c.createdAt ? new Date(c.createdAt).toLocaleDateString() : "Récemment";
 
   return (
     <Link href={`/rumeur/${c.id}`} style={{ textDecoration: "none", display: "flex", flexDirection: "column", height: "100%" }}>
@@ -68,15 +75,13 @@ function ClaimCard({ c }: { c: typeof claims[0] }) {
           e.currentTarget.style.borderColor = C.slate200;
         }}
       >
-        {/* Barre d'accentuation discrète */}
         <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 4, background: s.accent }} />
 
-        {/* ── Header : Catégorie & Statut ── */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
           <span style={{
             fontSize: 10, fontWeight: 800, padding: "4px 10px", borderRadius: 20,
             background: cat.bg, color: cat.color, textTransform: "uppercase", letterSpacing: "0.1em"
-          }}>{c.cat}</span>
+          }}>{c.location || "Localisation inconnue"}</span>
 
           <span style={{
             display: "inline-flex", alignItems: "center", gap: 6,
@@ -84,59 +89,30 @@ function ClaimCard({ c }: { c: typeof claims[0] }) {
             background: s.bg, color: s.color, border: `1px solid ${s.accent}20`
           }}>
             <span style={{ width: 6, height: 6, borderRadius: "50%", background: s.dot }} />
-            {s.label}
+            À ANALYSER
           </span>
         </div>
 
-        {/* ── Corps : Titre & Temps ── */}
         <div style={{ flex: 1 }}>
           <h3 style={{
             fontSize: 17, fontWeight: 700, color: C.slate900, lineHeight: 1.4,
             letterSpacing: "-0.3px", margin: "0 0 8px 0"
           }}>
-            {c.texte}
+            {c.text}
           </h3>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, color: C.slate400, fontSize: 12 }}>
-            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            Il y a {c.time}
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: C.slate500 }}>
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            Signalé le {c.createdAt ? new Date(c.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : "Récemment"}
           </div>
         </div>
 
-        {/* ── Footer : Métriques & IA ── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 14, paddingTop: 16, borderTop: `1px solid ${C.slate100}` }}>
-
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 12, fontWeight: 800, color: mlColor, fontFamily: "monospace" }}>{c.score_ml.toFixed(2)}</div>
-                <div style={{ fontSize: 9, color: C.slate400, fontWeight: 700, textTransform: "uppercase" }}>IA</div>
-              </div>
-              <div style={{ width: 1, height: 20, background: C.slate100 }} />
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <div style={{ fontSize: 10, color: C.slate500, fontWeight: 700, textTransform: "uppercase" }}>Confiance : {Math.round(c.confiance * 100)}%</div>
-                <div style={{ width: 60, height: 4, background: C.slate100, borderRadius: 2, overflow: "hidden" }}>
-                  <div style={{ width: `${c.score_ml * 100}%`, height: "100%", background: mlColor }} />
-                </div>
-              </div>
-            </div>
-
+            <span style={{ fontSize: 11, color: C.slate500, fontWeight: 600 }}>ID: {c.id}</span>
             <div style={{ width: 28, height: 28, borderRadius: "50%", background: C.blue50, display: "flex", alignItems: "center", justifyContent: "center", color: C.blue600 }}>
               <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
               </svg>
-            </div>
-          </div>
-
-          <div style={{ display: "flex", gap: 8 }}>
-            <div style={{ flex: 1, padding: "6px", borderRadius: 8, background: C.slate50, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: C.green600 }}>{c.pour}</span>
-              <span style={{ fontSize: 10, fontWeight: 600, color: C.slate500 }}>Vérifiés</span>
-            </div>
-            <div style={{ flex: 1, padding: "6px", borderRadius: 8, background: C.slate50, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: C.red600 }}>{c.contre}</span>
-              <span style={{ fontSize: 10, fontWeight: 600, color: C.slate500 }}>Réfutés</span>
             </div>
           </div>
         </div>
@@ -146,6 +122,67 @@ function ClaimCard({ c }: { c: typeof claims[0] }) {
 }
 
 export default function PublicHome() {
+  const router = useRouter();
+  const [rumors, setRumors] = useState<Rumor[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  const [themes, setThemes] = useState<any[]>([]);
+  const [activeThemeId, setActiveThemeId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const token = getAuthToken();
+    setIsLoggedIn(!!token);
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) setUser(JSON.parse(storedUser));
+    
+    fetchThemes();
+  }, []);
+
+  const fetchThemes = async () => {
+    try {
+      const res: any = await ThemesService.getApiThemes();
+      setThemes(res.data || (Array.isArray(res) ? res : []));
+    } catch (e) {
+      console.error("Erreur thèmes:", e);
+    }
+  };
+
+  const fetchRumors = async (themeId?: string) => {
+    setLoading(true);
+    setRumors([]);
+    try {
+      const tid = themeId !== undefined ? themeId : (activeThemeId || undefined);
+      console.log("Tentative de filtrage API avec theme_id:", tid);
+      const res = await RumorsService.getApiRumors(tid);
+      let data = res.data || (Array.isArray(res) ? res : []);
+      
+      // Filtrage de secours côté client si le backend renvoie tout
+      if (tid) {
+        data = data.filter((r: any) => String(r.theme_id) === String(tid));
+      }
+      
+      setRumors(data);
+    } catch (err: any) {
+      console.error("Erreur API:", err.message);
+      setRumors([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRumors();
+  }, [activeThemeId]);
+
+  const handleLogout = () => {
+    setAuthToken(null);
+    localStorage.removeItem("user");
+    setIsLoggedIn(false);
+    setUser(null);
+    router.refresh();
+  };
+
   return (
     <div style={{
       minHeight: "100vh", backgroundColor: C.slate50, display: "flex", flexDirection: "column",
@@ -177,18 +214,38 @@ export default function PublicHome() {
               </Link>
             ))}
             <div style={{ width: 1, height: 16, background: C.slate200, margin: "0 10px" }} />
-            <Link href="/login" style={{ padding: "8px 16px", fontSize: 13, fontWeight: 600, color: C.slate700, borderRadius: 8, textDecoration: "none", transition: "all .2s" }}
-              onMouseEnter={e => e.currentTarget.style.background = C.slate100}
-              onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-            >
-              Connexion
-            </Link>
-            <Link href="/register" style={{ padding: "8px 18px", background: C.slate900, color: "#fff", fontSize: 13, fontWeight: 700, borderRadius: 8, textDecoration: "none", boxShadow: `0 4px 12px ${C.slate900}30`, transition: "transform .2s" }}
-              onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.background = C.slate800; }}
-              onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.background = C.slate900; }}
-            >
-              S'inscrire
-            </Link>
+
+            {isLoggedIn ? (
+              <>
+                <Link href={user?.role === "moderator" ? "/moderateur/dashboard" : "/profile"} style={{ padding: "8px 16px", fontSize: 13, fontWeight: 600, color: C.blue600, borderRadius: 8, textDecoration: "none", transition: "all .2s" }}
+                  onMouseEnter={e => e.currentTarget.style.background = C.blue50}
+                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                >
+                  {user?.name || "Mon Profil"}
+                </Link>
+                <button onClick={handleLogout} style={{ padding: "8px 16px", fontSize: 13, fontWeight: 700, color: C.slate700, borderRadius: 8, background: "none", border: "none", cursor: "pointer", transition: "all .2s" }}
+                  onMouseEnter={e => e.currentTarget.style.background = C.slate100}
+                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                >
+                  Déconnexion
+                </button>
+              </>
+            ) : (
+              <>
+                <Link href="/login" style={{ padding: "8px 16px", fontSize: 13, fontWeight: 600, color: C.slate700, borderRadius: 8, textDecoration: "none", transition: "all .2s" }}
+                  onMouseEnter={e => e.currentTarget.style.background = C.slate100}
+                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                >
+                  Connexion
+                </Link>
+                <Link href="/register" style={{ padding: "8px 18px", background: C.slate900, color: "#fff", fontSize: 13, fontWeight: 700, borderRadius: 8, textDecoration: "none", boxShadow: `0 4px 12px ${C.slate900}30`, transition: "transform .2s" }}
+                  onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.background = C.slate800; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.background = C.slate900; }}
+                >
+                  S'inscrire
+                </Link>
+              </>
+            )}
           </nav>
         </div>
       </header>
@@ -221,7 +278,8 @@ export default function PublicHome() {
           <p style={{ fontSize: 20, color: C.slate300, maxWidth: 650, lineHeight: 1.6, marginBottom: 44, fontWeight: 500 }}>
             FakeCheckAI combine l'analyse prédictive IA et une modération humaine traçable pour déconstruire les rumeurs à la source sur un registre immuable.
           </p>
-          <div style={{ display: "flex", gap: 16 }}>
+
+          <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
             <button onClick={() => window.scrollTo({ top: document.getElementById('registre')?.offsetTop || 800, behavior: 'smooth' })} style={{ padding: "16px 32px", background: C.slate800, color: "#fff", fontWeight: 700, borderRadius: 12, fontSize: 16, border: "none", cursor: "pointer", boxShadow: "0 8px 24px rgba(22, 28, 40, 0.3)", transition: "all .2s" }}
               onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.02)"; e.currentTarget.style.background = C.slate900; }}
               onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.background = C.slate900; }}
@@ -249,7 +307,7 @@ export default function PublicHome() {
       </section>
 
       {/* ── Stats & Registre ── */}
-      <section id="registre" style={{ 
+      <section id="registre" style={{
         position: "relative", zIndex: 10, marginTop: -40, overflow: "hidden",
         background: C.slate50,
         backgroundImage: `radial-gradient(${C.slate300} 2px, transparent 2px)`,
@@ -282,11 +340,11 @@ export default function PublicHome() {
                 { v: "1 203", l: "VÉRIFIÉS", c: C.blue600, icon: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" }
               ].map((stat) => (
                 <div key={stat.l} style={{
-                  minWidth: 160, padding: "28px 24px", 
-                  background: "rgba(255, 255, 255, 0.6)", 
+                  minWidth: 160, padding: "28px 24px",
+                  background: "rgba(255, 255, 255, 0.6)",
                   backdropFilter: "blur(10px)",
                   borderRadius: 32,
-                  boxShadow: `0 10px 40px ${C.slate900}08`, 
+                  boxShadow: `0 10px 40px ${C.slate900}08`,
                   border: "1px solid rgba(255, 255, 255, 0.8)",
                   display: "flex", flexDirection: "column", gap: 16,
                   transition: "transform .3s ease",
@@ -295,9 +353,9 @@ export default function PublicHome() {
                   onMouseEnter={e => e.currentTarget.style.transform = "translateY(-5px)"}
                   onMouseLeave={e => e.currentTarget.style.transform = "translateY(0)"}
                 >
-                  <div style={{ 
-                    width: 40, height: 40, borderRadius: 12, background: stat.c + "10", 
-                    color: stat.c, display: "flex", alignItems: "center", justifyContent: "center" 
+                  <div style={{
+                    width: 40, height: 40, borderRadius: 12, background: stat.c + "10",
+                    color: stat.c, display: "flex", alignItems: "center", justifyContent: "center"
                   }}>
                     <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d={stat.icon} />
@@ -315,26 +373,36 @@ export default function PublicHome() {
           {/* Filtres catégories (Modern Pills) */}
           <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10, marginBottom: 40 }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: C.slate400, marginRight: 8 }}>Filtrer par :</span>
-            {[
-              { label: "Tous", active: true },
-              { label: "Santé", active: false },
-              { label: "Politique", active: false },
-              { label: "Économie", active: false },
-              { label: "Sécurité", active: false },
-              { label: "Environnement", active: false }
-            ].map(f => (
-              <button key={f.label} style={{
+            
+            {/* Bouton "Tous" */}
+            <button 
+              onClick={() => setActiveThemeId(null)}
+              style={{
                 padding: "10px 20px", borderRadius: 100, fontSize: 14, fontWeight: 700,
                 cursor: "pointer", transition: "all .2s",
-                background: f.active ? C.slate900 : "#fff",
-                color: f.active ? "#fff" : C.slate600,
-                boxShadow: f.active ? `0 4px 12px ${C.slate900}20` : `0 2px 4px ${C.slate900}05`,
-                border: f.active ? "none" : `1px solid ${C.slate200}`
+                background: activeThemeId === null ? C.slate900 : "#fff",
+                color: activeThemeId === null ? "#fff" : C.slate600,
+                boxShadow: activeThemeId === null ? `0 4px 12px ${C.slate900}20` : `0 2px 4px ${C.slate900}05`,
+                border: activeThemeId === null ? "none" : `1px solid ${C.slate200}`
               }}
-                onMouseEnter={e => { if (!f.active) { e.currentTarget.style.background = C.slate100; e.currentTarget.style.borderColor = C.slate300; } }}
-                onMouseLeave={e => { if (!f.active) { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = C.slate200; } }}
+            >
+              Tous
+            </button>
+
+            {/* Thèmes dynamiques depuis la BD (filtrage des doublons par nom) */}
+            {Array.from(new Map(themes.map(t => [t.name || t.title, t])).values()).map(t => (
+              <button key={t.id} 
+                onClick={() => setActiveThemeId(t.id)}
+                style={{
+                  padding: "10px 20px", borderRadius: 100, fontSize: 14, fontWeight: 700,
+                  cursor: "pointer", transition: "all .2s",
+                  background: activeThemeId === t.id ? C.slate900 : "#fff",
+                  color: activeThemeId === t.id ? "#fff" : C.slate600,
+                  boxShadow: activeThemeId === t.id ? `0 4px 12px ${C.slate900}20` : `0 2px 4px ${C.slate900}05`,
+                  border: activeThemeId === t.id ? "none" : `1px solid ${C.slate200}`
+                }}
               >
-                {f.label}
+                {t.name || t.title || "Thème"}
               </button>
             ))}
           </div>
@@ -342,12 +410,23 @@ export default function PublicHome() {
       </section>
 
       {/* ── Grille de cartes ── */}
-      <main style={{ flex: 1, maxWidth: 1100, margin: "0 auto", width: "100%", padding: "0 24px 80px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 24 }}>
-          {claims.map(c => <ClaimCard key={c.id} c={c} />)}
-        </div>
-
-
+      <main style={{ flex: 1, maxWidth: 1100, margin: "0 auto", width: "100%", padding: "0 24px 80px", zIndex: 2, position: "relative" }}>
+        {loading ? (
+          <div style={{ display: "flex", justifyContent: "center", padding: "80px 0" }}>
+            <svg style={{ animation: "spin 1s linear infinite" }} width="40" height="40" fill="none" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10" stroke={C.slate200} strokeWidth="3" />
+              <path d="M22 12a10 10 0 00-10-10" stroke={C.blue600} strokeWidth="3" strokeLinecap="round" />
+            </svg>
+          </div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 24 }}>
+            {rumors.length > 0 ? (
+              rumors.map(r => <ClaimCard key={r.id} c={r} />)
+            ) : (
+              <p style={{ textAlign: "center", gridColumn: "1/-1", padding: 40, color: C.slate400 }}>Aucune rumeur signalée pour le moment.</p>
+            )}
+          </div>
+        )}
       </main>
 
       <style>{`

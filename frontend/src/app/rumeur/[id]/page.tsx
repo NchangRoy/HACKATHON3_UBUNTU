@@ -1,7 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
+import { RumorsService, ClaimsService, EvidenceService, VerdictService } from "@/api";
+import type { Rumor } from "@/api";
 
 const C = {
   blue600: "#2563eb", blue700: "#1d4ed8", blue50: "#eff6ff", blue100: "#dbeafe",
@@ -27,70 +30,265 @@ type Verdict = {
   supersede: string | null; note: string;
 };
 
-const INITIAL_EVIDENCES: Evidence[] = [
-  { id: "E1", stance: "SUPPORTE", auteur: "Mama Céleste (Témoin)", type: "Vidéo", t_event: "14:00", t_obs: "14:05", t_upload: "14:09", hash: "a3f9...", detail: "Vidéo eau noirâtre devant domicile" },
-  { id: "E2", stance: "SUPPORTE", auteur: "Jean-Paul (Journaliste citoyen)", type: "Tweet", t_event: "14:00", t_obs: "14:10", t_upload: "14:12", hash: "8b2a...", detail: "Témoignage indirect habitant" },
-  { id: "E3", stance: "REFUTE", auteur: "Compte Officiel CDE", type: "Communiqué", t_event: "14:00", t_obs: "14:18", t_upload: "14:18", hash: "f9c1...", detail: "Déni de risque sanitaire" },
-  { id: "E5", stance: "SUPPORTE", auteur: "Pharmacien M.", type: "Registre médical", t_event: "14:15", t_obs: "14:23", t_upload: "15:00", hash: "b7c2...", detail: "Deux enfants avec vomissements" },
-  { id: "E6", stance: "SUPPORTE", auteur: "MINSANTE (Appel)", type: "Audio", t_event: "15:05", t_obs: "15:05", t_upload: "15:08", hash: "d41f...", detail: "Déclaration orale déploiement équipe" },
-];
+const INITIAL_EVIDENCES: Evidence[] = [];
+const INITIAL_VERDICTS: Verdict[] = [];
 
-const INITIAL_VERDICTS: Verdict[] = [
-  {
-    id: "V1", status: "CONTESTE", confiance: 0.35,
-    sources_pour: ["E1", "E2"], sources_contre: ["E3"],
-    regle: "Règle_v2.1 : Sans source officielle, témoignage visuel seul -> Contesté",
-    auteur: "Modérateur_99", date: "14:31:22", supersede: null,
-    note: "Odeur et couleur suspectes signalées, CDE nie tout risque. En attente d'analyse."
-  },
-  {
-    id: "V2", status: "PROB_VRAI", confiance: 0.72,
-    sources_pour: ["E1", "E2", "E5", "E6"], sources_contre: ["E3 (pondérée 0.3)"],
-    regle: "Règle_v2.1 : Déclaration sanitaire + cas documentés -> Prob. Vrai",
-    auteur: "Modérateur_99", date: "15:12:44", supersede: "V1",
-    note: "Deux cas médicaux documentés. MINSANTE en route. Évitez tout contact avec l'eau."
-  }
-];
-
-export default function RumeurDetailDemo() {
+export default function RumeurDetailPage() {
+  const { id } = useParams();
+  const [rumor, setRumor] = useState<Rumor | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [auditLog, setAuditLog] = useState<any>(null);
   const [evidences, setEvidences] = useState<Evidence[]>(INITIAL_EVIDENCES);
   const [verdicts, setVerdicts] = useState<Verdict[]>(INITIAL_VERDICTS);
-
   const [modalMode, setModalMode] = useState<"NONE" | "EVIDENCE" | "VERDICT" | "AUDIT">("NONE");
+  const [user, setUser] = useState<any>(null);
+  const [claimId, setClaimId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) setUser(JSON.parse(storedUser));
+  }, []);
+
+  useEffect(() => {
+    if (!id) return;
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const [rData, evRes] = await Promise.all([
+          RumorsService.getApiRumors1(id as string),
+          EvidenceService.getApiEvidence(id as string).catch(() => [])
+        ]);
+
+        const rumorData = (rData as any).data || rData;
+        setRumor(rumorData);
+        
+        let apiEvidences: Evidence[] = [];
+        // Charger les preuves depuis l'API dédiée
+        const evData = Array.isArray(evRes) ? evRes : (evRes as any).data;
+        if (evData && Array.isArray(evData)) {
+          apiEvidences = evData.map((e: any, idx: number) => {
+            const meta = e.metadata || {};
+            return {
+              id: e.id ? e.id.substring(0, 8) : `E${idx + 1}`,
+              stance: (meta.stance || "NEUTRE").toUpperCase() as any,
+              auteur: meta.auteur || e.uploader_name || "Anonyme",
+              type: e.type || "text",
+              t_event: e.t_event ? new Date(e.t_event).toLocaleTimeString() : "-",
+              t_obs: e.t_observation ? new Date(e.t_observation).toLocaleTimeString() : "-",
+              t_upload: e.t_upload ? new Date(e.t_upload).toLocaleTimeString() : "-",
+              hash: e.hash_file ? e.hash_file.substring(0, 10) : "-",
+              detail: meta.detail || "Sans description"
+            };
+          });
+          setEvidences(apiEvidences);
+        }
+
+        // Tenter de charger l'audit pour les verdicts
+        try {
+           const auditData = await ClaimsService.getApiClaimsAudit(id as string);
+           setAuditLog(auditData);
+           if (auditData.claim_id) setClaimId(auditData.claim_id);
+           
+            if (auditData.timeline) {
+              const realVerdicts: Verdict[] = auditData.timeline
+                .filter(t => t.action?.includes("Verdict") || t.action === "VERDICT")
+                .map((t, idx) => ({
+                  id: `V${idx + 1}`,
+                  status: (t.details?.status || "CONTESTE").toUpperCase() as any,
+                  confiance: t.details?.confidence_score || 0.5,
+                  sources_pour: [],
+                  sources_contre: [],
+                  regle: t.details?.summary || "Règle appliquée",
+                  auteur: t.acteur || "Modérateur",
+                  date: t.timestamp ? new Date(t.timestamp).toLocaleTimeString() : "",
+                  supersede: idx > 0 ? `V${idx}` : null,
+                  note: t.details?.summary || ""
+                }));
+              setVerdicts(realVerdicts);
+              
+              // Optionnel : compléter les preuves si le timeline en contient de nouvelles
+              const auditEvidences = auditData.timeline
+                .filter(t => t.action?.includes("Evidence") || t.action === "EVIDENCE")
+                .map((t, idx) => ({
+                  id: t.details?.id ? t.details.id.substring(0, 8) : `AE${idx + 1}`,
+                  stance: (t.details?.stance || "NEUTRE").toUpperCase() as any,
+                  auteur: t.acteur || "Anonyme",
+                  type: t.details?.type || "text",
+                  t_event: "-", t_obs: "-", t_upload: t.timestamp ? new Date(t.timestamp).toLocaleTimeString() : "-",
+                  hash: t.details?.hash ? t.details.hash.substring(0, 10) : "-",
+                  detail: t.details?.detail || t.details?.text || "Preuve auditée"
+                }));
+              
+              if (auditEvidences.length > apiEvidences.length) {
+                setEvidences(auditEvidences);
+              }
+            }
+        } catch (e) { 
+          console.log("Données d'audit non disponibles"); 
+        }
+
+      } catch (err) {
+        console.error("Erreur chargement:", err);
+      } finally {
+        const localEvsRaw = localStorage.getItem(`local_evidences_${id}`);
+        if (localEvsRaw) {
+          try {
+            const localEvs = JSON.parse(localEvsRaw);
+            setEvidences(prev => {
+              const all = [...prev, ...localEvs];
+              return Array.from(new Map(all.map(e => [e.id, e])).values());
+            });
+          } catch(e) {}
+        }
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [id]);
 
   // State forms
-  const [newEv, setNewEv] = useState({ stance: "SUPPORTE", type: "Document", auteur: "", detail: "" });
+  const [newEv, setNewEv] = useState<{ stance: string; type: string; auteur: string; detail: string; file: File | null }>({ 
+    stance: "SUPPORTE", type: "text", auteur: "", detail: "", file: null 
+  });
   const [newVer, setNewVer] = useState({ status: "CONFIRME", note: "", regle: "" });
 
-  const activeVerdict = verdicts[verdicts.length - 1];
-
-  const handleAddEvidence = (e: any) => {
-    e.preventDefault();
-    const ev: Evidence = {
-      id: `E${evidences.length + 1}`,
-      stance: newEv.stance as any, auteur: newEv.auteur, type: newEv.type, detail: newEv.detail,
-      t_event: "15:20", t_obs: "15:25", t_upload: "15:30", hash: Math.random().toString(36).substr(2, 6) + "..."
-    };
-    setEvidences([...evidences, ev]);
-    setModalMode("NONE");
-    setNewEv({ stance: "SUPPORTE", type: "Document", auteur: "", detail: "" });
+  const defaultVerdict: Verdict = {
+    id: "V0",
+    status: "CONTESTE",
+    confiance: 0,
+    sources_pour: [],
+    sources_contre: [],
+    regle: "Analyse initiale",
+    auteur: "Système",
+    date: "-",
+    supersede: null,
+    note: "Aucun verdict n'a encore été rendu pour ce signalement."
   };
 
-  const handleAddVerdict = (e: any) => {
+  const activeVerdict = verdicts.length > 0 ? verdicts[verdicts.length - 1] : defaultVerdict;
+
+  const handleAddEvidence = async (e: React.FormEvent) => {
     e.preventDefault();
-    const ver: Verdict = {
-      id: `V${verdicts.length + 1}`,
-      status: newVer.status as any, confiance: 0.95,
-      sources_pour: evidences.filter(e => e.stance === "SUPPORTE").map(e => e.id),
-      sources_contre: evidences.filter(e => e.stance === "REFUTE").map(e => e.id),
-      regle: newVer.regle || "Règle_v3.0 : Décision confirmée manuellement",
-      auteur: "Admin_Local", date: new Date().toLocaleTimeString(),
-      supersede: activeVerdict.id,
-      note: newVer.note
-    };
-    setVerdicts([...verdicts, ver]);
-    setModalMode("NONE");
-    setNewVer({ status: "CONFIRME", note: "", regle: "" });
+    if (!id) return;
+    
+    try {
+      setLoading(true);
+      let targetId = claimId;
+      
+      // Si pas de claimId, on tente de créer le claim atomique d'abord (atomisation on-demand)
+      if (!targetId) {
+        console.log("Le claim n'existe pas encore. Création du claim atomique pour la rumeur...");
+        const res = await ClaimsService.postApiClaims({
+          rumor_id: id as string,
+          text: rumor?.text || "Claim principal"
+        });
+        // Extraire l'ID selon le format de réponse (souvent {data: {id: ...}} ou directement {id: ...})
+        targetId = res.id || res.data?.id;
+        if (targetId) setClaimId(targetId);
+      }
+
+      if (!targetId) {
+        alert("Impossible de générer un Claim pour cette rumeur. L'opération a échoué.");
+        return;
+      }
+
+      console.log("Envoi de preuve pour la rumeur (format JSON avec metadata):", id);
+      const now = new Date().toISOString();
+      await EvidenceService.postApiEvidence({
+        rumor_id: id as string,
+        type: newEv.type as any,
+        file_url: newEv.file ? "https://storage.placeholder.com/mock-upload" : "https://storage.placeholder.com/none",
+        t_event: now,
+        t_observation: now,
+        hash_file: "sha256-" + Math.random().toString(36).substring(2),
+        uploaded_by: user?.id || "anonymous",
+        metadata: {
+          stance: newEv.stance,
+          detail: newEv.detail,
+          auteur: newEv.auteur
+        }
+      });
+      
+      // Optimistic UI update instead of reload
+      const newEvObj = {
+        id: "E" + Date.now().toString().substring(5),
+        stance: newEv.stance.toUpperCase() as any,
+        auteur: newEv.auteur || user?.name || "Modérateur",
+        type: newEv.type,
+        t_event: new Date().toLocaleTimeString(),
+        t_obs: new Date().toLocaleTimeString(),
+        t_upload: new Date().toLocaleTimeString(),
+        hash: "sha256-" + Math.random().toString(36).substring(2, 10),
+        detail: newEv.detail || "Preuve ajoutée"
+      };
+      
+      setEvidences(prev => {
+        const next = [...prev, newEvObj];
+        const existingRaw = localStorage.getItem(`local_evidences_${id}`);
+        let existing = [];
+        if (existingRaw) try { existing = JSON.parse(existingRaw); } catch(e){}
+        existing.push(newEvObj);
+        localStorage.setItem(`local_evidences_${id}`, JSON.stringify(existing));
+        return next;
+      });
+      
+      // Clear form
+      setNewEv({ stance: "SUPPORTE", type: "text", auteur: "", detail: "", file: null });
+    } catch (err) {
+      console.error("Erreur lors de l'ajout de la preuve:", err);
+      alert("Erreur lors de l'ajout de la preuve. Vérifiez que le backend autorise l'atomisation.");
+    } finally {
+      setLoading(false);
+      setModalMode("NONE");
+    }
+  };
+
+  const handleAddVerdict = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id) return;
+
+    try {
+      setLoading(true);
+      let targetId = claimId;
+
+      if (!targetId) {
+        const res = await ClaimsService.postApiClaims({
+          rumor_id: id as string,
+          text: rumor?.text || "Claim principal"
+        });
+        targetId = res.id || res.data?.id;
+        if (targetId) setClaimId(targetId);
+      }
+
+      if (!targetId) {
+        alert("Impossible de générer un Claim pour cette rumeur.");
+        return;
+      }
+      
+      // Mapping des statuts locaux vers les statuts API
+      const statusMap: Record<string, any> = {
+        "CONFIRME": "True",
+        "REFUTE": "False",
+        "PROB_VRAI": "ProbablyTrue",
+        "CONTESTE": "Contested"
+      };
+
+      await VerdictService.postApiVerdicts({
+        claim_id: targetId,
+        status: statusMap[newVer.status] || "Contested",
+        summary: newVer.note,
+        confidence_score: 0.95,
+        moderator_id: user?.id || "moderator-unknown"
+      });
+      
+      window.location.reload();
+    } catch (err) {
+      console.error("Erreur lors de l'émission du verdict:", err);
+      alert("Erreur lors de l'émission du verdict.");
+    } finally {
+      setLoading(false);
+      setModalMode("NONE");
+    }
   };
 
   const getStatusColor = (s: string) => {
@@ -132,13 +330,13 @@ export default function RumeurDetailDemo() {
           {/* Claim Header */}
           <div style={{ background: "#fff", padding: 32, borderRadius: 8, border: `1px solid ${C.slate200}`, boxShadow: "0 1px 3px rgba(0,0,0,0.02)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-              <span style={{ padding: "4px 10px", background: C.slate100, color: C.slate600, fontSize: 11, fontWeight: 700, borderRadius: 6, textTransform: "uppercase" }}>Santé</span>
+              <span style={{ padding: "4px 10px", background: C.slate100, color: C.slate600, fontSize: 11, fontWeight: 700, borderRadius: 6, textTransform: "uppercase" }}>{rumor?.location || "Localisation"}</span>
               <span style={{ padding: "4px 10px", background: getStatusColor(activeVerdict.status).bg, color: getStatusColor(activeVerdict.status).color, fontSize: 12, fontWeight: 700, borderRadius: 6 }}>
-                Statut actuel : {activeVerdict.status}
+                Statut : {activeVerdict.status}
               </span>
             </div>
             <h1 style={{ fontSize: 24, fontWeight: 800, color: C.slate900, lineHeight: 1.3, letterSpacing: "-0.5px" }}>
-              L'eau qui fuit rue Melen est contaminée et dangereuse pour la santé.
+              {rumor?.text || "Chargement..."}
             </h1>
             <p style={{ marginTop: 12, fontSize: 15, color: C.slate600, lineHeight: 1.6 }}>
               <strong>Avis public :</strong> {activeVerdict.note}
@@ -202,15 +400,17 @@ export default function RumeurDetailDemo() {
         <div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
             <h2 style={{ fontSize: 18, fontWeight: 700, color: C.slate900 }}>Arbre des Verdicts</h2>
-            <button onClick={() => setModalMode("VERDICT")} style={{ 
-              padding: "6px 14px", background: "#fff", border: `1px solid ${C.slate300}`, color: C.slate900, 
-              borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: "pointer", transition: "all .2s" 
-            }}
-              onMouseEnter={e => { e.currentTarget.style.background = C.slate50; e.currentTarget.style.borderColor = C.slate400; }}
-              onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = C.slate300; }}
-            >
-              Nouveau
-            </button>
+            {user?.role === "moderator" && (
+              <button onClick={() => setModalMode("VERDICT")} style={{ 
+                padding: "6px 14px", background: "#fff", border: `1px solid ${C.slate300}`, color: C.slate900, 
+                borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: "pointer", transition: "all .2s" 
+              }}
+                onMouseEnter={e => { e.currentTarget.style.background = C.slate50; e.currentTarget.style.borderColor = C.slate400; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = C.slate300; }}
+              >
+                Nouveau
+              </button>
+            )}
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 0, position: "relative" }}>
@@ -315,10 +515,59 @@ export default function RumeurDetailDemo() {
                     </select>
                   </div>
                   <div>
-                    <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: C.slate700, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Type</label>
-                    <input required value={newEv.type} onChange={e => setNewEv({ ...newEv, type: e.target.value })} placeholder="Ex: Vidéo, Tweet" style={{ width: "100%", padding: "12px 16px", background: "#fff", border: `1px solid ${C.slate200}`, borderRadius: 12, fontSize: 14, outline: "none" }} />
+                    <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: C.slate700, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Type de preuve</label>
+                    <select value={newEv.type} onChange={e => setNewEv({ ...newEv, type: e.target.value })} style={{ width: "100%", padding: "12px 16px", background: "#fff", border: `1px solid ${C.slate200}`, borderRadius: 12, fontSize: 14, fontWeight: 500, outline: "none" }}>
+                      <option value="text">Texte / Témoignage</option>
+                      <option value="image">Image / Photo</option>
+                      <option value="video">Vidéo</option>
+                      <option value="audio">Audio</option>
+                    </select>
                   </div>
                 </div>
+                {(newEv.type === "image" || newEv.type === "video" || newEv.type === "audio") && (
+                  <div>
+                    <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: C.slate700, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Fichier ({newEv.type})</label>
+                    <div style={{ position: "relative" }}>
+                      <input 
+                        id="file-upload"
+                        type="file" 
+                        accept={newEv.type === "image" ? "image/*" : newEv.type === "video" ? "video/*" : "audio/*"}
+                        onChange={e => setNewEv({ ...newEv, file: e.target.files?.[0] || null })}
+                        style={{ display: "none" }} 
+                      />
+                      <label htmlFor="file-upload" style={{
+                        display: "flex", alignItems: "center", justifyContent: "center", gap: 12,
+                        padding: "24px", background: "#fff", border: `2px dashed ${C.slate200}`,
+                        borderRadius: 16, cursor: "pointer", transition: "all .2s",
+                        color: C.slate600, fontSize: 14, fontWeight: 600
+                      }}
+                        onMouseEnter={e => { 
+                          e.currentTarget.style.borderColor = C.blue600; 
+                          e.currentTarget.style.background = C.blue50; 
+                          e.currentTarget.style.color = C.blue600; 
+                        }}
+                        onMouseLeave={e => { 
+                          e.currentTarget.style.borderColor = C.slate200; 
+                          e.currentTarget.style.background = "#fff"; 
+                          e.currentTarget.style.color = C.slate600; 
+                        }}
+                      >
+                        <div style={{ 
+                          width: 40, height: 40, borderRadius: "50%", background: C.blue50, 
+                          display: "flex", alignItems: "center", justifyContent: "center", color: C.blue600 
+                        }}>
+                          <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                          </svg>
+                        </div>
+                        <div style={{ textAlign: "left" }}>
+                          <div style={{ color: C.slate900, fontWeight: 700 }}>{newEv.file ? newEv.file.name : "Choisir un fichier"}</div>
+                          <div style={{ fontSize: 12, color: C.slate500, fontWeight: 500 }}>{newEv.file ? `${(newEv.file.size / 1024).toFixed(1)} KB` : `Cliquez pour uploader votre média (${newEv.type})`}</div>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+                )}
                 <div>
                   <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: C.slate700, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Détail de la preuve</label>
                   <input required value={newEv.detail} onChange={e => setNewEv({ ...newEv, detail: e.target.value })} placeholder="Décrivez le contenu ici..." style={{ width: "100%", padding: "12px 16px", background: "#fff", border: `1px solid ${C.slate200}`, borderRadius: 12, fontSize: 14, outline: "none" }} />
@@ -328,15 +577,23 @@ export default function RumeurDetailDemo() {
                   <input required value={newEv.auteur} onChange={e => setNewEv({ ...newEv, auteur: e.target.value })} placeholder="Ex: Mama Céleste" style={{ width: "100%", padding: "12px 16px", background: "#fff", border: `1px solid ${C.slate200}`, borderRadius: 12, fontSize: 14, outline: "none" }} />
                 </div>
                 
-                <button type="submit" style={{ 
-                  marginTop: 12, width: "100%", padding: "16px", background: C.slate900, 
-                  color: "#fff", fontWeight: 700, borderRadius: 14, border: "none", cursor: "pointer",
-                  transition: "all .2s", boxShadow: `0 8px 24px ${C.slate900}30`
-                }}
-                  onMouseEnter={e => { e.currentTarget.style.background = C.slate800; e.currentTarget.style.transform = "translateY(-2px)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = C.slate900; e.currentTarget.style.transform = "translateY(0)"; }}
+                <button type="submit" 
+                  disabled={loading}
+                  style={{ 
+                    marginTop: 12, width: "100%", padding: "16px", background: loading ? C.slate400 : C.slate900, 
+                    color: "#fff", fontWeight: 700, borderRadius: 14, border: "none", cursor: loading ? "not-allowed" : "pointer",
+                    transition: "all .2s", boxShadow: loading ? "none" : `0 8px 24px ${C.slate900}30`,
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 10
+                  }}
+                  onMouseEnter={e => { if (!loading) { e.currentTarget.style.background = C.slate800; e.currentTarget.style.transform = "translateY(-2px)"; } }}
+                  onMouseLeave={e => { if (!loading) { e.currentTarget.style.background = C.slate900; e.currentTarget.style.transform = "translateY(0)"; } }}
                 >
-                  Hacher et Sauvegarder
+                  {loading && (
+                    <svg className="animate-spin" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  )}
+                  {loading ? "Traitement en cours..." : "Hacher et Sauvegarder"}
                 </button>
               </form>
             )}
@@ -365,15 +622,23 @@ export default function RumeurDetailDemo() {
                 <div style={{ fontSize: 12, color: C.slate500, background: "rgba(15,23,42,0.03)", padding: "12px 16px", borderRadius: 12, border: `1px dashed ${C.slate200}` }}>
                   💡 En validant, vous créerez le verdict <strong>V{verdicts.length + 1}</strong> qui supersèdera <strong>{activeVerdict.id}</strong>. L'historique sera conservé.
                 </div>
-                <button type="submit" style={{ 
-                  marginTop: 12, width: "100%", padding: "16px", background: C.slate900, 
-                  color: "#fff", fontWeight: 700, borderRadius: 14, border: "none", cursor: "pointer",
-                  transition: "all .2s", boxShadow: `0 8px 24px ${C.slate900}30`
-                }}
-                  onMouseEnter={e => { e.currentTarget.style.background = C.slate800; e.currentTarget.style.transform = "translateY(-2px)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = C.slate900; e.currentTarget.style.transform = "translateY(0)"; }}
+                <button type="submit" 
+                  disabled={loading}
+                  style={{ 
+                    marginTop: 12, width: "100%", padding: "16px", background: loading ? C.slate400 : C.slate900, 
+                    color: "#fff", fontWeight: 700, borderRadius: 14, border: "none", cursor: loading ? "not-allowed" : "pointer",
+                    transition: "all .2s", boxShadow: loading ? "none" : `0 8px 24px ${C.slate900}30`,
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 10
+                  }}
+                  onMouseEnter={e => { if (!loading) { e.currentTarget.style.background = C.slate800; e.currentTarget.style.transform = "translateY(-2px)"; } }}
+                  onMouseLeave={e => { if (!loading) { e.currentTarget.style.background = C.slate900; e.currentTarget.style.transform = "translateY(0)"; } }}
                 >
-                  Commit Verdict
+                  {loading && (
+                    <svg className="animate-spin" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  )}
+                  {loading ? "Commit en cours..." : "Commit Verdict"}
                 </button>
               </form>
             )}
@@ -382,32 +647,18 @@ export default function RumeurDetailDemo() {
               {modalMode === "AUDIT" && (
                 <div>
                   <pre style={{ background: C.slate900, color: "#e2e8f0", padding: 20, borderRadius: 8, fontSize: 12, overflowX: "auto", fontFamily: "monospace", whiteSpace: "pre-wrap" }}>
-                    {`RAPPORT D'AUDIT — Claim #C2 — Rue Melen — ${new Date().toLocaleDateString()}
-
+                    {auditLog ? JSON.stringify(auditLog, null, 2) : `RAPPORT D'AUDIT — Rumor #${id} — ${new Date().toLocaleDateString()}
+                    
+En attente de données structurées depuis le backend...
+                    
 =============================================
-HISTORIQUE DES VERDICTS (Immuable)
+HISTORIQUE LOCAL (Simulation)
 =============================================
 ${verdicts.map(v => `
 ${v.date} : Statut → ${v.status} (ID: ${v.id})
   Motif : ${v.regle}
   Auteur : ${v.auteur}
-  Preuves analysées : 
-    - POUR : ${v.sources_pour.join(", ") || "Aucune"}
-    - CONTRE : ${v.sources_contre.join(", ") || "Aucune"}
-  Affichage public : "${v.note}"
-  Supersède : ${v.supersede || "N/A"}
-`).join("")}
-
-=============================================
-REGISTRE DES PREUVES (Hachées)
-=============================================
-${evidences.map(e => `[${e.id}] ${e.t_upload} | SHA-256: ${e.hash}\n    Source: ${e.auteur} (${e.type}) -> ${e.stance}`).join("\n")}
-
----------------------------------------------
-Signature Numérique Système: OK
-Note: À aucun moment le statut de ce claim n'a été modifié sans trace.
-Toutes les actions sont liées cryptographiquement aux auteurs.
-`}
+`).join("")}`}
                   </pre>
                   <button onClick={() => setModalMode("NONE")} style={{ 
                     marginTop: 24, width: "100%", padding: "16px", background: C.slate100, 
@@ -433,10 +684,17 @@ Toutes les actions sont liées cryptographiquement aux auteurs.
 
 // Styles globaux pour les animations
 const GlobalStyles = () => (
-  <style jsx global>{`
+  <style dangerouslySetInnerHTML={{ __html: `
     @keyframes modalFadeIn {
       from { opacity: 0; transform: translateY(20px) scale(0.95); }
       to { opacity: 1; transform: translateY(0) scale(1); }
     }
-  `}</style>
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .animate-spin {
+      animation: spin 1s linear infinite;
+    }
+  `}} />
 );
