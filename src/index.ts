@@ -1,5 +1,6 @@
 import * as dotenv from "dotenv";
 dotenv.config();
+import cors from "cors";
 
 import express, { Express } from "express";
 import swaggerUi from "swagger-ui-express";
@@ -13,8 +14,21 @@ import { pool } from "./config/db";
 const app: Express = express();
 const PORT = process.env.PORT || 3000;
 
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+  next();
+});
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+app.use(cors({
+  origin: [
+    "https://petstore.swagger.io",
+    "http://localhost:3000"
+  ]
+}));
 
 // ✅ Swagger — un seul montage, toujours actif (y compris en production)
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
