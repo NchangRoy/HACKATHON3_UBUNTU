@@ -12,29 +12,29 @@ const C = {
 };
 
 const methodColors: Record<string, { bg: string; color: string }> = {
-  GET:    { bg: C.green50,   color: C.green600 },
-  POST:   { bg: C.blue50,    color: C.blue600 },
-  DELETE: { bg: C.red50,     color: C.red600 },
+  GET: { bg: C.green50, color: C.green600 },
+  POST: { bg: C.blue50, color: C.blue600 },
+  DELETE: { bg: C.red50, color: C.red600 },
 };
 
 const endpoints = [
-  { method: "GET",  path: "/api/rumors",              desc: "Lister toutes les rumeurs (filtrable par thème, lieu)" },
-  { method: "POST", path: "/api/rumors",              desc: "Soumettre une nouvelle rumeur" },
-  { method: "GET",  path: "/api/rumors/{id}",         desc: "Détail d'une rumeur spécifique" },
-  { method: "GET",  path: "/api/claims",              desc: "Lister tous les claims atomiques" },
-  { method: "POST", path: "/api/claims",              desc: "Créer un claim atomique pour une rumeur" },
-  { method: "GET",  path: "/api/claims/{id}",         desc: "Détail d'un claim" },
+  { method: "GET", path: "/api/rumors", desc: "Lister toutes les rumeurs (filtrable par thème, lieu)" },
+  { method: "POST", path: "/api/rumors", desc: "Soumettre une nouvelle rumeur" },
+  { method: "GET", path: "/api/rumors/{id}", desc: "Détail d'une rumeur spécifique" },
+  { method: "GET", path: "/api/claims", desc: "Lister tous les claims atomiques" },
+  { method: "POST", path: "/api/claims", desc: "Créer un claim atomique pour une rumeur" },
+  { method: "GET", path: "/api/claims/{id}", desc: "Détail d'un claim" },
   { method: "POST", path: "/api/claims/{id}/verdict", desc: "Émettre un verdict sur un claim (modérateur requis)" },
-  { method: "GET",  path: "/api/claims/{id}/audit",   desc: "Rapport d'audit complet horodaté d'un claim" },
-  { method: "GET",  path: "/api/verdicts",            desc: "Lister tous les verdicts publiés" },
-  { method: "GET",  path: "/api/verdicts/{id}",       desc: "Détail d'un verdict" },
-  { method: "POST", path: "/api/verdicts",            desc: "Créer un verdict avec preuves liées" },
-  { method: "GET",  path: "/api/evidence",            desc: "Lister toutes les preuves" },
-  { method: "POST", path: "/api/evidence",            desc: "Soumettre une preuve (image, vidéo, texte, audio)" },
-  { method: "GET",  path: "/api/evidence/{id}",       desc: "Preuves associées à une rumeur" },
-  { method: "POST", path: "/api/auth/login",          desc: "Authentification — retourne un token JWT" },
-  { method: "POST", path: "/api/auth/register",       desc: "Créer un nouveau compte utilisateur" },
-  { method: "GET",  path: "/api/themes",              desc: "Lister les thèmes disponibles" },
+  { method: "GET", path: "/api/claims/{id}/audit", desc: "Rapport d'audit complet horodaté d'un claim" },
+  { method: "GET", path: "/api/verdicts", desc: "Lister tous les verdicts publiés" },
+  { method: "GET", path: "/api/verdicts/{id}", desc: "Détail d'un verdict" },
+  { method: "POST", path: "/api/verdicts", desc: "Créer un verdict avec preuves liées" },
+  { method: "GET", path: "/api/evidence", desc: "Lister toutes les preuves" },
+  { method: "POST", path: "/api/evidence", desc: "Soumettre une preuve (image, vidéo, texte, audio)" },
+  { method: "GET", path: "/api/evidence/{id}", desc: "Preuves associées à une rumeur" },
+  { method: "POST", path: "/api/auth/login", desc: "Authentification — retourne un token JWT" },
+  { method: "POST", path: "/api/auth/register", desc: "Créer un nouveau compte utilisateur" },
+  { method: "GET", path: "/api/themes", desc: "Lister les thèmes disponibles" },
 ];
 
 export default function DocsPage() {
@@ -43,7 +43,10 @@ export default function DocsPage() {
       {/* Navbar */}
       <header style={{ position: "fixed", top: 12, left: "50%", transform: "translateX(-50%)", width: "calc(100% - 24px)", maxWidth: 1100, zIndex: 100, background: "rgba(255,255,255,0.75)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.4)", borderRadius: 16, boxShadow: "0 8px 32px rgba(0,0,0,0.05)" }}>
         <div style={{ padding: "0 24px", height: 60, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <Link href="/" style={{ fontWeight: 800, fontSize: 18, color: C.slate900, textDecoration: "none" }}>FakeCheckAI</Link>
+          <Link href="/" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none" }}>
+            <img src="/logo.png" alt="Logo" style={{ width: 32, height: 32, borderRadius: 8 }} />
+            <span style={{ fontWeight: 800, fontSize: 18, color: C.slate900, letterSpacing: "-0.5px" }}>FakeCheck</span>
+          </Link>
           <nav style={{ display: "flex", gap: 8 }}>
             {[{ label: "Rumeurs", href: "/#registre" }, { label: "Méthode", href: "/methode" }, { label: "Docs", href: "/docs" }].map(n => (
               <Link key={n.href} href={n.href} style={{ padding: "8px 12px", fontSize: 13, fontWeight: 600, color: n.href === "/docs" ? C.blue600 : C.slate600, borderRadius: 8, textDecoration: "none", background: n.href === "/docs" ? C.blue50 : "transparent" }}>{n.label}</Link>
@@ -100,11 +103,11 @@ export default function DocsPage() {
           <h2 style={{ fontSize: 24, fontWeight: 800, color: C.slate900, marginBottom: 20, letterSpacing: "-0.5px" }}>Statuts de verdict</h2>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             {[
-              { v: "True",          label: "Confirmé",        color: C.green600,   bg: C.green50 },
-              { v: "False",         label: "Réfuté",           color: C.red600,     bg: C.red50 },
-              { v: "ProbablyTrue",  label: "Probablement vrai", color: C.blue600,   bg: C.blue50 },
-              { v: "Contested",     label: "Contesté",         color: C.orange600,  bg: C.orange50 },
-              { v: "Unverifiable",  label: "Non vérifiable",   color: C.slate600,   bg: C.slate100 },
+              { v: "True", label: "Confirmé", color: C.green600, bg: C.green50 },
+              { v: "False", label: "Réfuté", color: C.red600, bg: C.red50 },
+              { v: "ProbablyTrue", label: "Probablement vrai", color: C.blue600, bg: C.blue50 },
+              { v: "Contested", label: "Contesté", color: C.orange600, bg: C.orange50 },
+              { v: "Unverifiable", label: "Non vérifiable", color: C.slate600, bg: C.slate100 },
             ].map(s => (
               <div key={s.v} style={{ background: s.bg, border: `1px solid ${s.color}20`, borderRadius: 10, padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <code style={{ fontFamily: "monospace", fontSize: 13, fontWeight: 700, color: s.color }}>{s.v}</code>

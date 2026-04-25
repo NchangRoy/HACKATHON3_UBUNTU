@@ -18,12 +18,21 @@ const C = {
 
 type Statut = "CONTESTE" | "PROB_VRAI" | "PROB_FAUX" | "CONFIRME" | "REFUTE";
 
-const statusMap: Record<Statut, { label: string; bg: string; color: string; dot: string; glow: string }> = {
-  CONTESTE: { label: "Contesté", bg: "rgba(234, 179, 8, 0.05)", color: "#eab308", dot: "#eab308", glow: "rgba(234, 179, 8, 0.4)" },
+const statusMap: Record<string, { label: string; bg: string; color: string; dot: string; glow: string }> = {
+  // Backend values
+  TRUE:         { label: "Confirmé", bg: "rgba(34, 197, 94, 0.1)", color: "#22c55e", dot: "#22c55e", glow: "rgba(34, 197, 94, 0.6)" },
+  FALSE:        { label: "Réfuté", bg: "rgba(239, 68, 68, 0.05)", color: "#ef4444", dot: "#ef4444", glow: "rgba(239, 68, 68, 0.4)" },
+  PROBABLYTRUE: { label: "Prob. Vrai", bg: "rgba(59, 130, 246, 0.05)", color: "#3b82f6", dot: "#3b82f6", glow: "rgba(59, 130, 246, 0.4)" },
+  CONTESTED:    { label: "Contesté", bg: "rgba(234, 179, 8, 0.05)", color: "#eab308", dot: "#eab308", glow: "rgba(234, 179, 8, 0.4)" },
+  UNVERIFIABLE: { label: "Non vérifiable", bg: "rgba(148, 163, 184, 0.05)", color: "#94a3b8", dot: "#94a3b8", glow: "rgba(148, 163, 184, 0.4)" },
+  // Legacy values
+  CONTESTE:  { label: "Contesté", bg: "rgba(234, 179, 8, 0.05)", color: "#eab308", dot: "#eab308", glow: "rgba(234, 179, 8, 0.4)" },
   PROB_VRAI: { label: "Prob. Vrai", bg: "rgba(34, 197, 94, 0.05)", color: "#22c55e", dot: "#22c55e", glow: "rgba(34, 197, 94, 0.4)" },
   PROB_FAUX: { label: "Prob. Faux", bg: "rgba(249, 115, 22, 0.05)", color: "#f97516", dot: "#f97516", glow: "rgba(249, 115, 22, 0.4)" },
-  CONFIRME: { label: "Confirmé", bg: "rgba(34, 197, 94, 0.1)", color: "#22c55e", dot: "#22c55e", glow: "rgba(34, 197, 94, 0.6)" },
-  REFUTE: { label: "Réfuté", bg: "rgba(239, 68, 68, 0.05)", color: "#ef4444", dot: "#ef4444", glow: "rgba(239, 68, 68, 0.4)" },
+  CONFIRME:  { label: "Confirmé", bg: "rgba(34, 197, 94, 0.1)", color: "#22c55e", dot: "#22c55e", glow: "rgba(34, 197, 94, 0.6)" },
+  REFUTE:    { label: "Réfuté", bg: "rgba(239, 68, 68, 0.05)", color: "#ef4444", dot: "#ef4444", glow: "rgba(239, 68, 68, 0.4)" },
+  // Default
+  DEFAULT:   { label: "À analyser", bg: "rgba(148, 163, 184, 0.05)", color: "#94a3b8", dot: "#94a3b8", glow: "rgba(148, 163, 184, 0.3)" },
 };
 
 const alerts = [
@@ -32,8 +41,9 @@ const alerts = [
   { id: 3, msg: "Déclaration officielle CDE contredit #c2", time: "30 min", type: "dedup" },
 ];
 
-function Badge({ statut }: { statut: Statut }) {
-  const s = statusMap[statut];
+function Badge({ statut }: { statut: string }) {
+  const key = (statut || "DEFAULT").toUpperCase();
+  const s = statusMap[key] || statusMap["DEFAULT"];
   return (
     <span style={{
       display: "inline-flex", alignItems: "center", gap: 6,
@@ -109,6 +119,7 @@ export default function ModDashboard() {
   const [selectedRumorId, setSelectedRumorId] = useState<string | null>(null);
   const [quickVerdict, setQuickVerdict] = useState({ status: "CONFIRME", note: "", ruleId: "" });
   const [verdictLoading, setVerdictLoading] = useState(false);
+  const [rumorStatuses, setRumorStatuses] = useState<Record<string, string>>({});
 
   const [user, setUser] = useState<any>(null);
 
@@ -206,10 +217,28 @@ export default function ModDashboard() {
     const fetchRumors = async () => {
       setLoading(true);
       try {
-        const response = await RumorsService.getApiRumors();
+        const [response, claimsRes, verdictsRes] = await Promise.all([
+          RumorsService.getApiRumors(),
+          ClaimsService.getApiClaimsAll().catch(() => ({ data: [] })),
+          VerdictService.getApiVerdictsAll().catch(() => ({ data: [] }))
+        ]);
         if (response.success && response.data) {
           setRumors(response.data);
         }
+
+        // Construire la map rumorId → dernier statut
+        const allClaims: Array<{ id: string; rumor_id: string }> = (claimsRes as any).data || [];
+        const allVerdicts: Array<any> = (verdictsRes as any).data || [];
+        const claimToRumor: Record<string, string> = {};
+        allClaims.forEach(c => { claimToRumor[c.id] = c.rumor_id; });
+        const newStatuses: Record<string, string> = {};
+        allVerdicts
+          .sort((a, b) => new Date(a.published_at || 0).getTime() - new Date(b.published_at || 0).getTime())
+          .forEach(v => {
+            const rumorId = claimToRumor[v.claim_id];
+            if (rumorId) newStatuses[rumorId] = v.status;
+          });
+        setRumorStatuses(newStatuses);
       } catch (err: any) {
         console.error("Erreur dashboard API:", err.message);
         setRumors([{ id: "err-500", text: "Le backend (Vercel) rencontre une erreur 500. Modération en mode local.", location: "Alerte Système" }]);
@@ -357,11 +386,10 @@ export default function ModDashboard() {
                                 <span style={{ fontSize: 11, color: C.slate500 }}>{r.location}</span>
                               </div>
                             </div>
-                            <div><Badge statut={(r as any).status || "CONTESTE"} /></div>
+                            <div><Badge statut={rumorStatuses[r.id as string] || "DEFAULT"} /></div>
                             <div style={{ fontSize: 11, fontFamily: "monospace", color: C.slate400 }}>{r.id?.substring(0, 8)}</div>
-                            <div style={{ fontSize: 12, color: C.slate700 }}>{r.createdAt ? new Date(r.createdAt).toLocaleDateString() : "-"}</div>
+                            <div style={{ fontSize: 12, color: C.slate700 }}>{(r.createdAt || (r as any).created_at) ? new Date(r.createdAt || (r as any).created_at).toLocaleDateString('fr-FR') : "-"}</div>
                             <div style={{ textAlign: "right", display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                              <button onClick={() => { setSelectedRumorId(r.id || null); setShowVerdictModal(true); }} style={{ padding: "6px 14px", border: "none", borderRadius: 6, fontSize: 11, fontWeight: 700, color: "#fff", background: C.blue600, cursor: "pointer" }}>Verdict</button>
                               <Link href={`/rumeur/${r.id}`} style={{ display: "inline-block", padding: "6px 14px", border: `1px solid ${C.slate200}`, borderRadius: 6, fontSize: 11, fontWeight: 700, color: C.slate700, textDecoration: "none", background: "#fff" }}>Détail</Link>
                             </div>
                           </div>

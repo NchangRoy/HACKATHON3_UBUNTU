@@ -9,7 +9,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "FakeCheckAI — Plateforme de fact-checking collaboratif",
+  title: "FakeCheck — Plateforme de fact-checking collaboratif",
   description:
     "Plateforme collaborative de vérification des faits assistée par intelligence artificielle. Détectez, analysez et réfutez les rumeurs en temps réel.",
 };

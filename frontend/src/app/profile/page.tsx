@@ -84,14 +84,14 @@ export default function ProfilePage() {
         }
         try {
           // On envoie name ET title pour être sûr (le backend semble demander 'titre')
-          const themeRes: any = await ThemesService.postApiThemes({ 
+          const themeRes: any = await ThemesService.postApiThemes({
             name: newThemeName,
-            title: newThemeName 
+            title: newThemeName
           } as any);
-          
+
           // Le backend peut renvoyer l'ID directement, ou dans .data.id, ou dans .data[0].id
           themeId = themeRes?.data?.id || themeRes?.id || themeRes?.data?.[0]?.id || themeRes?.[0]?.id;
-          
+
           if (!themeId) {
             console.error("Format de réponse thème inconnu:", themeRes);
             throw new Error("ID de thème manquant dans la réponse serveur");
@@ -111,7 +111,7 @@ export default function ProfilePage() {
         user_id: user?.id, // Requis par le backend
         theme_id: themeId  // Requis par le backend
       };
-      
+
       if (!payload.theme_id) {
         setStatus({ type: "error", msg: "Veuillez sélectionner ou créer une thématique." });
         setSubmitting(false);
@@ -141,7 +141,7 @@ export default function ProfilePage() {
   if (!user) return <div style={{ padding: 40, textAlign: "center", color: C.slate500 }}>Chargement du profil...</div>;
 
   return (
-    <div style={{ 
+    <div style={{
       minHeight: "100vh", background: C.slate50, padding: "100px 24px 80px",
       backgroundImage: `radial-gradient(${C.slate300} 2px, transparent 2px)`,
       backgroundSize: "24px 24px"
@@ -157,7 +157,7 @@ export default function ProfilePage() {
         <div style={{ padding: "0 24px", height: 60, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <Link href="/" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none" }}>
             <img src="/logo.png" alt="Logo" style={{ width: 32, height: 32, borderRadius: 8 }} />
-            <span style={{ fontWeight: 800, fontSize: 18, color: C.slate900, letterSpacing: "-0.5px" }}>FakeCheckAI</span>
+            <span style={{ fontWeight: 800, fontSize: 18, color: C.slate900, letterSpacing: "-0.5px" }}>FakeCheck</span>
           </Link>
 
           <nav style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -270,9 +270,9 @@ export default function ProfilePage() {
                       disabled={showNewThemeInput}
                       value={selectedTheme}
                       onChange={e => setSelectedTheme(e.target.value)}
-                      style={{ 
-                        width: "100%", padding: "12px 16px", border: `1px solid ${C.slate200}`, 
-                        borderRadius: 12, fontSize: 15, outline: "none", 
+                      style={{
+                        width: "100%", padding: "12px 16px", border: `1px solid ${C.slate200}`,
+                        borderRadius: 12, fontSize: 15, outline: "none",
                         background: showNewThemeInput ? C.slate50 : "#fff",
                         cursor: showNewThemeInput ? "not-allowed" : "pointer",
                         color: showNewThemeInput ? C.slate400 : C.slate900
@@ -290,9 +290,9 @@ export default function ProfilePage() {
                       setShowNewThemeInput(!showNewThemeInput);
                       if (!showNewThemeInput) setSelectedTheme("");
                     }}
-                    style={{ 
+                    style={{
                       width: 46, height: 46, display: "flex", alignItems: "center", justifyContent: "center",
-                      borderRadius: 12, background: showNewThemeInput ? C.blue600 : C.slate100, 
+                      borderRadius: 12, background: showNewThemeInput ? C.blue600 : C.slate100,
                       color: showNewThemeInput ? "#fff" : C.slate600, border: "none", cursor: "pointer",
                       fontSize: 24, fontWeight: 300, transition: "all .2s",
                       boxShadow: showNewThemeInput ? `0 4px 12px ${C.blue600}40` : "none"

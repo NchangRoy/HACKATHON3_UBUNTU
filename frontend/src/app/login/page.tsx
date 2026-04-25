@@ -39,7 +39,7 @@ function Logo({ size = 28 }: { size?: number }) {
           <path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </div>
-      <span style={{ fontWeight: 700, fontSize: 16, color: C.slate900, letterSpacing: "-0.3px" }}>FakeCheckAI</span>
+      <span style={{ fontWeight: 700, fontSize: 16, color: C.slate900, letterSpacing: "-0.3px" }}>FakeCheck</span>
     </div>
   );
 }
@@ -105,17 +105,17 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
     if (!email || !password) { setError("Veuillez remplir tous les champs obligatoires."); return; }
-    
+
     setLoading(true);
     try {
       const response = await AuthService.postApiAuthLogin({ email, password });
       if (response.success && response.token) {
         setAuthToken(response.token);
-        
+
         // Stocker les infos utilisateur de base
         if (response.user) {
           localStorage.setItem("user", JSON.stringify(response.user));
-          
+
           // Redirection basée sur le rôle
           const role = response.user.role;
           if (role === "individual" || role === "organization") {
@@ -144,7 +144,7 @@ export default function LoginPage() {
       <Link href="/" style={{
         position: "fixed", top: 12, right: 12, zIndex: 100,
         display: "flex", alignItems: "center", gap: 6,
-        padding: "8px 14px", background: "rgba(255,255,255,0.8)", 
+        padding: "8px 14px", background: "rgba(255,255,255,0.8)",
         backdropFilter: "blur(12px)", border: `1px solid ${C.slate200}`,
         borderRadius: 12, textDecoration: "none", color: C.slate700,
         fontSize: 12, fontWeight: 700, transition: "all .2s",
@@ -180,7 +180,7 @@ export default function LoginPage() {
         <div style={{ position: "relative" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <img src="/logo.png" alt="Logo" style={{ width: 32, height: 32, borderRadius: 8 }} />
-            <span style={{ color: "#fff", fontWeight: 800, fontSize: 18, letterSpacing: "-0.5px" }}>FakeCheckAI</span>
+            <span style={{ color: "#fff", fontWeight: 800, fontSize: 18, letterSpacing: "-0.5px" }}>FakeCheck</span>
           </div>
         </div>
 
@@ -208,8 +208,8 @@ export default function LoginPage() {
       </div>
 
       {/* ── Colonne droite (formulaire) ── */}
-      <main style={{ 
-        flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", 
+      <main style={{
+        flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center",
         padding: "32px 24px", background: C.slate50,
         backgroundImage: `radial-gradient(${C.slate300} 2px, transparent 2px)`,
         backgroundSize: "24px 24px"

@@ -54,7 +54,11 @@ function ClaimCard({ c, rumorStatus }: { c: Rumor; rumorStatus?: string }) {
   const s = statusMap[statusKey] || statusMap["DEFAULT"];
   const cat = catColors["Santé"]; // Valeur par défaut
 
-  const timeLabel = c.createdAt ? new Date(c.createdAt).toLocaleDateString() : "Récemment";
+  // Le backend peut renvoyer created_at (snake_case) ou createdAt (camelCase)
+  const rawDate = c.createdAt || (c as any).created_at;
+  const dateLabel = rawDate
+    ? new Date(rawDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+    : null;
 
   return (
     <Link href={`/rumeur/${c.id}`} style={{ textDecoration: "none", display: "flex", flexDirection: "column", height: "100%" }}>
@@ -112,13 +116,30 @@ function ClaimCard({ c, rumorStatus }: { c: Rumor; rumorStatus?: string }) {
           </h3>
           <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: C.slate500 }}>
             <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            Signalé le {c.createdAt ? new Date(c.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : "Récemment"}
+            {dateLabel ? `Signalé le ${dateLabel}` : <span style={{ color: C.slate400, fontStyle: "italic" }}>Date de signalement inconnue</span>}
           </div>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 14, paddingTop: 16, borderTop: `1px solid ${C.slate100}` }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontSize: 11, color: C.slate500, fontWeight: 600 }}>ID: {c.id}</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke={C.slate400} strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <span style={{ fontSize: 12, color: C.slate400, fontWeight: 600 }}>
+                {rawDate
+                  ? (() => {
+                      const d = new Date(rawDate);
+                      const day = String(d.getUTCDate()).padStart(2, '0');
+                      const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+                      const year = d.getUTCFullYear();
+                      const h = String(d.getUTCHours()).padStart(2, '0');
+                      const m = String(d.getUTCMinutes()).padStart(2, '0');
+                      return `${day}/${month}/${year} à ${h}:${m}`;
+                    })()
+                  : "--/--/----"}
+              </span>
+            </div>
             <div style={{ width: 28, height: 28, borderRadius: "50%", background: C.blue50, display: "flex", alignItems: "center", justifyContent: "center", color: C.blue600 }}>
               <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />

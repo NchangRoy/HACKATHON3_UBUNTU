@@ -45,7 +45,10 @@ export default function MethodePage() {
       {/* Navbar */}
       <header style={{ position: "fixed", top: 12, left: "50%", transform: "translateX(-50%)", width: "calc(100% - 24px)", maxWidth: 1100, zIndex: 100, background: "rgba(255,255,255,0.75)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.4)", borderRadius: 16, boxShadow: "0 8px 32px rgba(0,0,0,0.05)" }}>
         <div style={{ padding: "0 24px", height: 60, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <Link href="/" style={{ fontWeight: 800, fontSize: 18, color: C.slate900, textDecoration: "none" }}>FakeCheckAI</Link>
+          <Link href="/" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none" }}>
+            <img src="/logo.png" alt="Logo" style={{ width: 32, height: 32, borderRadius: 8 }} />
+            <span style={{ fontWeight: 800, fontSize: 18, color: C.slate900, letterSpacing: "-0.5px" }}>FakeCheck</span>
+          </Link>
           <nav style={{ display: "flex", gap: 8 }}>
             {[{ label: "Rumeurs", href: "/#registre" }, { label: "Méthode", href: "/methode" }, { label: "Docs", href: "/docs" }].map(n => (
               <Link key={n.href} href={n.href} style={{ padding: "8px 12px", fontSize: 13, fontWeight: 600, color: n.href === "/methode" ? C.blue600 : C.slate600, borderRadius: 8, textDecoration: "none", background: n.href === "/methode" ? C.blue50 : "transparent" }}>{n.label}</Link>
