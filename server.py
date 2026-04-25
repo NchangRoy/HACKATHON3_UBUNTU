@@ -16,3 +16,19 @@ def root():
 def analyze(request: QueryRequest):
     result = run_agent(request.query)
     return result["output"]
+
+
+from langchain.tools import tool
+import whisper
+
+model = whisper.load_model("base")
+
+@tool
+def transcribe_audio(audio_path: str) -> str:
+    """
+    Convert audio → text transcript
+    """
+
+    result = model.transcribe(audio_path)
+    return result["text"]
+
