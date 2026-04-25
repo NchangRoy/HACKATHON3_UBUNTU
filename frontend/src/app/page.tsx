@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { RumorsService, ThemesService } from "@/api";
+import { RumorsService, ThemesService, ClaimsService, VerdictService } from "@/api";
 import type { Rumor } from "@/api";
 import { getAuthToken, setAuthToken } from "@/services/api-client";
 
@@ -17,12 +17,21 @@ const C = {
 
 type Statut = "CONTESTE" | "PROB_VRAI" | "PROB_FAUX" | "CONFIRME" | "REFUTE";
 
-const statusMap: Record<Statut, { label: string; bg: string; color: string; dot: string; accent: string }> = {
-  CONTESTE: { label: "Contesté", bg: "#fefce8", color: "#854d0e", dot: "#ca8a04", accent: "#eab308" },
-  PROB_VRAI: { label: "Probablement vrai", bg: "#f0fdf4", color: "#166534", dot: "#16a34a", accent: "#22c55e" },
-  PROB_FAUX: { label: "Probablement faux", bg: "#fff7ed", color: "#9a3412", dot: "#ea580c", accent: "#f97316" },
-  CONFIRME: { label: "Confirmé", bg: "#f0fdf4", color: "#166534", dot: "#15803d", accent: "#16a34a" },
-  REFUTE: { label: "Réfuté", bg: "#fef2f2", color: "#991b1b", dot: "#ef4444", accent: "#ef4444" },
+const statusMap: Record<string, { label: string; bg: string; color: string; dot: string; accent: string }> = {
+  // Valeurs backend
+  TRUE:          { label: "✓ Confirmé",        bg: "#f0fdf4", color: "#166534", dot: "#16a34a", accent: "#22c55e" },
+  FALSE:         { label: "✗ Réfuté",           bg: "#fef2f2", color: "#991b1b", dot: "#ef4444", accent: "#ef4444" },
+  PROBABLYTRUE:  { label: "~ Prob. Vrai",       bg: "#eff6ff", color: "#1e40af", dot: "#3b82f6", accent: "#60a5fa" },
+  CONTESTED:     { label: "⚠ Contesté",         bg: "#fefce8", color: "#854d0e", dot: "#ca8a04", accent: "#eab308" },
+  UNVERIFIABLE:  { label: "○ Non vérifiable",   bg: "#f1f5f9", color: "#475569", dot: "#94a3b8", accent: "#94a3b8" },
+  // Valeurs locales legacy
+  CONTESTE:   { label: "⚠ Contesté",         bg: "#fefce8", color: "#854d0e", dot: "#ca8a04", accent: "#eab308" },
+  PROB_VRAI:  { label: "~ Prob. Vrai",       bg: "#f0fdf4", color: "#166534", dot: "#16a34a", accent: "#22c55e" },
+  PROB_FAUX:  { label: "Prob. Faux",         bg: "#fff7ed", color: "#9a3412", dot: "#ea580c", accent: "#f97316" },
+  CONFIRME:   { label: "✓ Confirmé",         bg: "#f0fdf4", color: "#166534", dot: "#15803d", accent: "#16a34a" },
+  REFUTE:     { label: "✗ Réfuté",           bg: "#fef2f2", color: "#991b1b", dot: "#ef4444", accent: "#ef4444" },
+  // Défaut
+  DEFAULT:    { label: "● À analyser",       bg: "#f1f5f9", color: "#475569", dot: "#94a3b8", accent: "#94a3b8" },
 };
 
 const claims = [
@@ -40,8 +49,9 @@ const catColors: Record<string, { bg: string; color: string }> = {
   "Environnement": { bg: "#f0fdf4", color: "#166534" },
 };
 
-function ClaimCard({ c }: { c: Rumor }) {
-  const s = statusMap["CONTESTE"]; // Valeur par défaut
+function ClaimCard({ c, rumorStatus }: { c: Rumor; rumorStatus?: string }) {
+  const statusKey = (rumorStatus || "DEFAULT").toUpperCase();
+  const s = statusMap[statusKey] || statusMap["DEFAULT"];
   const cat = catColors["Santé"]; // Valeur par défaut
 
   const timeLabel = c.createdAt ? new Date(c.createdAt).toLocaleDateString() : "Récemment";
@@ -89,7 +99,7 @@ function ClaimCard({ c }: { c: Rumor }) {
             background: s.bg, color: s.color, border: `1px solid ${s.accent}20`
           }}>
             <span style={{ width: 6, height: 6, borderRadius: "50%", background: s.dot }} />
-            À ANALYSER
+            {rumorStatus ? s.label : "● À analyser"}
           </span>
         </div>
 
@@ -129,6 +139,7 @@ export default function PublicHome() {
   const [user, setUser] = useState<any>(null);
   const [themes, setThemes] = useState<any[]>([]);
   const [activeThemeId, setActiveThemeId] = useState<string | null>(null);
+  const [rumorStatuses, setRumorStatuses] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const token = getAuthToken();
@@ -153,8 +164,11 @@ export default function PublicHome() {
     setRumors([]);
     try {
       const tid = themeId !== undefined ? themeId : (activeThemeId || undefined);
-      console.log("Tentative de filtrage API avec theme_id:", tid);
-      const res = await RumorsService.getApiRumors(tid);
+      const [res, claimsRes, verdictsRes] = await Promise.all([
+        RumorsService.getApiRumors(tid),
+        ClaimsService.getApiClaimsAll().catch(() => ({ data: [] })),
+        VerdictService.getApiVerdictsAll().catch(() => ({ data: [] }))
+      ]);
       let data = res.data || (Array.isArray(res) ? res : []);
       
       // Filtrage de secours côté client si le backend renvoie tout
@@ -163,6 +177,24 @@ export default function PublicHome() {
       }
       
       setRumors(data);
+
+      // Construire la map rumorId → dernier statut verdict
+      const allClaims: Array<{ id: string; rumor_id: string }> = (claimsRes as any).data || [];
+      const allVerdicts: Array<any> = (verdictsRes as any).data || [];
+
+      // Pour chaque claim, on garde le verdict le plus récent
+      const claimToRumor: Record<string, string> = {};
+      allClaims.forEach(c => { claimToRumor[c.id] = c.rumor_id; });
+
+      const newStatuses: Record<string, string> = {};
+      allVerdicts
+        .sort((a, b) => new Date(a.published_at || 0).getTime() - new Date(b.published_at || 0).getTime())
+        .forEach(v => {
+          const rumorId = claimToRumor[v.claim_id];
+          if (rumorId) newStatuses[rumorId] = v.status; // Écrase avec le + récent
+        });
+      setRumorStatuses(newStatuses);
+
     } catch (err: any) {
       console.error("Erreur API:", err.message);
       setRumors([]);
@@ -421,7 +453,7 @@ export default function PublicHome() {
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 24 }}>
             {rumors.length > 0 ? (
-              rumors.map(r => <ClaimCard key={r.id} c={r} />)
+              rumors.map(r => <ClaimCard key={r.id} c={r} rumorStatus={rumorStatuses[r.id as string]} />)
             ) : (
               <p style={{ textAlign: "center", gridColumn: "1/-1", padding: 40, color: C.slate400 }}>Aucune rumeur signalée pour le moment.</p>
             )}

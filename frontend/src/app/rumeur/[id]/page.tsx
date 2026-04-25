@@ -289,9 +289,24 @@ export default function RumeurDetailPage() {
   };
 
   const getStatusColor = (s: string) => {
-    if (s === "CONTESTE") return { bg: C.orange50, color: C.orange600 };
-    if (s === "PROB_VRAI" || s === "CONFIRME") return { bg: C.green50, color: C.green600 };
-    return { bg: C.red50, color: C.red600 };
+    const status = (s || "").toUpperCase();
+    // ✅ Vrai / Confirmé → Vert
+    if (status === "TRUE" || status === "CONFIRME") 
+      return { bg: "#f0fdf4", color: "#16a34a", label: "✓ Confirmé" };
+    // ❌ Faux / Réfuté → Rouge
+    if (status === "FALSE" || status === "REFUTE") 
+      return { bg: "#fef2f2", color: "#dc2626", label: "✗ Réfuté" };
+    // 🔵 Probablement vrai → Bleu
+    if (status === "PROBABLYTRUE" || status === "PROB_VRAI") 
+      return { bg: "#eff6ff", color: "#2563eb", label: "~ Prob. Vrai" };
+    // ⚠️ Contesté → Orange
+    if (status === "CONTESTED" || status === "CONTESTE") 
+      return { bg: "#fff7ed", color: "#ea580c", label: "⚠ Contesté" };
+    // ⬜ Non vérifiable / Neutre → Gris
+    if (status === "UNVERIFIABLE") 
+      return { bg: "#f1f5f9", color: "#64748b", label: "○ Non vérifiable" };
+    // Par défaut → Gris (en attente)
+    return { bg: "#f1f5f9", color: "#64748b", label: "○ En attente" };
   };
 
   return (
@@ -329,7 +344,7 @@ export default function RumeurDetailPage() {
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
               <span style={{ padding: "4px 10px", background: C.slate100, color: C.slate600, fontSize: 11, fontWeight: 700, borderRadius: 6, textTransform: "uppercase" }}>{rumor?.location || "Localisation"}</span>
               <span style={{ padding: "4px 10px", background: getStatusColor(activeVerdict.status).bg, color: getStatusColor(activeVerdict.status).color, fontSize: 12, fontWeight: 700, borderRadius: 6 }}>
-                Statut : {activeVerdict.status}
+                {getStatusColor(activeVerdict.status).label}
               </span>
             </div>
             <h1 style={{ fontSize: 24, fontWeight: 800, color: C.slate900, lineHeight: 1.3, letterSpacing: "-0.5px" }}>
@@ -423,9 +438,15 @@ export default function RumeurDetailPage() {
                     {isDefault ? "0" : v.id}
                   </div>
                   <div style={{ background: "#fff", border: `1px solid ${isActive ? C.blue600 : C.slate200}`, borderRadius: 8, padding: 16, flex: 1, opacity: isActive ? 1 : 0.7 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                      <span style={{ fontWeight: 700, color: isActive ? C.slate900 : C.slate500 }}>{v.status}</span>
-                      <span style={{ fontSize: 12, color: C.slate400 }}>{v.date}</span>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, alignItems: "center" }}>
+                      <span style={{ 
+                        padding: "3px 8px", borderRadius: 6, fontSize: 12, fontWeight: 700,
+                        background: getStatusColor(v.status).bg, 
+                        color: getStatusColor(v.status).color
+                      }}>
+                        {getStatusColor(v.status).label}
+                      </span>
+                      <span style={{ fontSize: 11, color: C.slate400 }}>{v.date}</span>
                     </div>
                     {v.supersede && (
                       <div style={{ fontSize: 11, color: C.slate500, marginBottom: 8, background: C.slate100, display: "inline-block", padding: "2px 6px", borderRadius: 4 }}>
