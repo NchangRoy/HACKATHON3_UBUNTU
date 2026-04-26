@@ -100,19 +100,31 @@ export const login = async (req: Request<{}, {}, LoginRequest>, res: Response) =
       });
     }
 
-    const result = await pool.query(
-      "SELECT id, name, email, password_hash FROM users WHERE email = $1",
+    let result = await pool.query(
+      "SELECT id, name, email, password_hash, role FROM users WHERE email = $1",
       [email]
     );
 
-    if (!result.rowCount || result.rowCount === 0) {
+    let user = result.rowCount && result.rowCount > 0 ? result.rows[0] : null;
+
+    if (!user) {
+      // Si non trouvé dans users, on cherche dans moderators
+      const modResult = await pool.query(
+        "SELECT id, name, email, password_hash, 'moderator' AS role FROM moderators WHERE email = $1",
+        [email]
+      );
+      if (modResult.rowCount && modResult.rowCount > 0) {
+        user = modResult.rows[0];
+      }
+    }
+
+    if (!user) {
       return res.status(401).json({
         success: false,
         message: "Email ou mot de passe incorrect"
       });
     }
 
-    const user = result.rows[0];
     const isPasswordValid = await bcrypt.compare(password, user.password_hash);
 
     if (!isPasswordValid) {
@@ -123,7 +135,7 @@ export const login = async (req: Request<{}, {}, LoginRequest>, res: Response) =
     }
 
     const token = jwt.sign(
-      { id: user.id, email: user.email },
+      { id: user.id, email: user.email, role: user.role },
       JWT_SECRET,
       { expiresIn: "24h" }
     );
@@ -135,7 +147,8 @@ export const login = async (req: Request<{}, {}, LoginRequest>, res: Response) =
       user: {
         id: user.id,
         email: user.email,
-        name: user.name
+        name: user.name,
+        role: user.role
       }
     });
   } catch (error) {
@@ -172,13 +185,22 @@ export const getMe = async (req: Request, res: Response) => {
       });
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET) as { id: string; email: string };
+    const decoded = jwt.verify(token, JWT_SECRET) as { id: string; email: string; role?: string };
 
-    const result = await pool.query(
-      `SELECT id, name, email, phone, role, priority, created_at
-       FROM users WHERE id = $1`,
-      [decoded.id]
-    );
+    let result;
+    if (decoded.role === "moderator") {
+      result = await pool.query(
+        `SELECT id, name, email, level, 'moderator' AS role
+         FROM moderators WHERE id = $1`,
+        [decoded.id]
+      );
+    } else {
+      result = await pool.query(
+        `SELECT id, name, email, phone, role, priority, created_at
+         FROM users WHERE id = $1`,
+        [decoded.id]
+      );
+    }
 
     if (!result.rowCount || result.rowCount === 0) {
       return res.status(404).json({
