@@ -41,22 +41,22 @@ export default function DocsPage() {
   return (
     <div style={{ minHeight: "100vh", background: C.slate50, backgroundImage: "radial-gradient(#cbd5e1 2px, transparent 2px)", backgroundSize: "24px 24px" }}>
       {/* Navbar */}
-      <header style={{ position: "fixed", top: 12, left: "50%", transform: "translateX(-50%)", width: "calc(100% - 24px)", maxWidth: 1100, zIndex: 100, background: "rgba(255,255,255,0.75)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.4)", borderRadius: 16, boxShadow: "0 8px 32px rgba(0,0,0,0.05)" }}>
-        <div style={{ padding: "0 24px", height: 60, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <header className="r-navbar" style={{ position: "fixed", top: 12, left: "50%", transform: "translateX(-50%)", width: "calc(100% - 24px)", maxWidth: 1100, zIndex: 100, background: "rgba(255,255,255,0.75)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.4)", borderRadius: 16, boxShadow: "0 8px 32px rgba(0,0,0,0.05)" }}>
+        <div className="r-navbar-inner" style={{ padding: "0 24px", height: 60, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <Link href="/" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none" }}>
             <img src="/logo.png" alt="Logo" style={{ width: 32, height: 32, borderRadius: 8 }} />
-            <span style={{ fontWeight: 800, fontSize: 18, color: C.slate900, letterSpacing: "-0.5px" }}>FakeCheck</span>
+            <span className="r-brand-text" style={{ fontWeight: 800, fontSize: 18, color: C.slate900, letterSpacing: "-0.5px" }}>FakeCheck</span>
           </Link>
-          <nav style={{ display: "flex", gap: 8 }}>
+          <nav className="r-nav-links" style={{ display: "flex", gap: 8 }}>
             {[{ label: "Rumeurs", href: "/#registre" }, { label: "Méthode", href: "/methode" }, { label: "Docs", href: "/docs" }].map(n => (
-              <Link key={n.href} href={n.href} style={{ padding: "8px 12px", fontSize: 13, fontWeight: 600, color: n.href === "/docs" ? C.blue600 : C.slate600, borderRadius: 8, textDecoration: "none", background: n.href === "/docs" ? C.blue50 : "transparent" }}>{n.label}</Link>
+              <Link key={n.href} href={n.href} className="r-nav-secondary" style={{ padding: "8px 12px", fontSize: 13, fontWeight: 600, color: n.href === "/docs" ? C.blue600 : C.slate600, borderRadius: 8, textDecoration: "none", background: n.href === "/docs" ? C.blue50 : "transparent" }}>{n.label}</Link>
             ))}
             <Link href="/login" style={{ padding: "8px 16px", fontSize: 13, fontWeight: 700, background: C.slate900, color: "#fff", borderRadius: 8, textDecoration: "none" }}>Connexion</Link>
           </nav>
         </div>
       </header>
 
-      <main style={{ maxWidth: 900, margin: "0 auto", padding: "120px 24px 80px" }}>
+      <main style={{ maxWidth: 900, margin: "0 auto", padding: "120px 16px 80px" }}>
         {/* Header */}
         <div style={{ marginBottom: 48 }}>
           <div style={{ display: "inline-block", padding: "6px 16px", background: C.blue50, color: C.blue600, borderRadius: 100, fontSize: 12, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 20 }}>

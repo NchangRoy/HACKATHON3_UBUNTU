@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { RumorsService, ThemesService, ClaimsService, VerdictService } from "@/api";
-import type { Rumor } from "@/api";
+import { RumorsService, ThemesService, ClaimsService, VerdictService, UsersService } from "@/api";
+import type { Rumor, User } from "@/api";
 import { getAuthToken, setAuthToken } from "@/services/api-client";
 
 const C = {
@@ -49,7 +49,7 @@ const catColors: Record<string, { bg: string; color: string }> = {
   "Environnement": { bg: "#f0fdf4", color: "#166534" },
 };
 
-function ClaimCard({ c, rumorStatus }: { c: Rumor; rumorStatus?: string }) {
+function ClaimCard({ c, rumorStatus, author }: { c: Rumor; rumorStatus?: string; author?: User }) {
   const statusKey = (rumorStatus || "DEFAULT").toUpperCase();
   const s = statusMap[statusKey] || statusMap["DEFAULT"];
   const cat = catColors["Santé"]; // Valeur par défaut
@@ -140,6 +140,17 @@ function ClaimCard({ c, rumorStatus }: { c: Rumor; rumorStatus?: string }) {
                   : "--/--/----"}
               </span>
             </div>
+            
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke={C.slate400} strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+              <span style={{ fontSize: 12, color: C.slate500, fontWeight: 500 }}>
+                {author?.name || "Anonyme"}
+              </span>
+            </div>
+          </div>
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: -14 }}>
             <div style={{ width: 28, height: 28, borderRadius: "50%", background: C.blue50, display: "flex", alignItems: "center", justifyContent: "center", color: C.blue600 }}>
               <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
@@ -161,6 +172,7 @@ export default function PublicHome() {
   const [themes, setThemes] = useState<any[]>([]);
   const [activeThemeId, setActiveThemeId] = useState<string | null>(null);
   const [rumorStatuses, setRumorStatuses] = useState<Record<string, string>>({});
+  const [users, setUsers] = useState<User[]>([]);
 
   useEffect(() => {
     const token = getAuthToken();
@@ -185,12 +197,28 @@ export default function PublicHome() {
     setRumors([]);
     try {
       const tid = themeId !== undefined ? themeId : (activeThemeId || undefined);
-      const [res, claimsRes, verdictsRes] = await Promise.all([
+      const [res, claimsRes, verdictsRes, usersRes] = await Promise.all([
         RumorsService.getApiRumors(tid),
         ClaimsService.getApiClaimsAll().catch(() => ({ data: [] })),
-        VerdictService.getApiVerdictsAll().catch(() => ({ data: [] }))
+        VerdictService.getApiVerdictsAll().catch(() => ({ data: [] })),
+        UsersService.getApiUsers().catch(() => ({ data: [] }))
       ]);
       let data = res.data || (Array.isArray(res) ? res : []);
+      
+      const fetchedUsers = [...((usersRes as any).data || [])];
+      const fetchedUserIds = new Set(fetchedUsers.map((u: any) => u.id));
+      const userIdsToFetch = Array.from(new Set(data.map((r: any) => r.user_id).filter(Boolean)));
+      const missingUserIds = userIdsToFetch.filter(id => !fetchedUserIds.has(id));
+
+      if (missingUserIds.length > 0) {
+        const missingUsers = await Promise.all(
+          missingUserIds.map(id => UsersService.getApiUsers1(id as string).catch(() => null))
+        );
+        missingUsers.forEach(u => {
+          if (u) fetchedUsers.push(u);
+        });
+      }
+      setUsers(fetchedUsers);
 
       // Filtrage de secours côté client si le backend renvoie tout
       if (tid) {
@@ -244,26 +272,26 @@ export default function PublicHome() {
     }}>
 
       {/* ── Navbar (Glassmorphism) ── */}
-      <header style={{
+      <header className="r-navbar" style={{
         position: "fixed", top: 12, left: "50%", transform: "translateX(-50%)",
         width: "calc(100% - 24px)", maxWidth: 1100, zIndex: 100,
         background: "rgba(255, 255, 255, 0.7)", backdropFilter: "blur(12px)",
         border: "1px solid rgba(255, 255, 255, 0.3)", borderRadius: 16,
         boxShadow: "0 8px 32px rgba(0, 0, 0, 0.05)"
       }}>
-        <div style={{ padding: "0 24px", height: 60, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div className="r-navbar-inner" style={{ padding: "0 24px", height: 60, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <Link href="/" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none" }}>
             <img src="/logo.png" alt="Logo" style={{ width: 32, height: 32, borderRadius: 8 }} />
-            <span style={{ fontWeight: 800, fontSize: 18, color: C.slate900, letterSpacing: "-0.5px" }}>FakeCheck</span>
+            <span className="r-brand-text" style={{ fontWeight: 800, fontSize: 18, color: C.slate900, letterSpacing: "-0.5px" }}>FakeCheck</span>
           </Link>
 
-          <nav style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <nav className="r-nav-links" style={{ display: "flex", alignItems: "center", gap: 6 }}>
             {[
               { label: "Rumeurs", href: "/#registre" },
               { label: "Méthode", href: "/methode" },
               { label: "Docs", href: "/docs" }
             ].map(n => (
-              <Link key={n.label} href={n.href} style={{ padding: "8px 12px", fontSize: 13, fontWeight: 600, color: C.slate600, borderRadius: 8, textDecoration: "none", transition: "all .2s" }}
+              <Link key={n.label} href={n.href} className="r-nav-secondary" style={{ padding: "8px 12px", fontSize: 13, fontWeight: 600, color: C.slate600, borderRadius: 8, textDecoration: "none", transition: "all .2s" }}
                 onMouseEnter={e => { e.currentTarget.style.color = C.slate900; e.currentTarget.style.background = C.slate100; }}
                 onMouseLeave={e => { e.currentTarget.style.color = C.slate600; e.currentTarget.style.background = "transparent"; }}
               >
@@ -309,7 +337,7 @@ export default function PublicHome() {
 
       {/* ── Hero Section (Incurved Design) ── */}
       <section style={{
-        position: "relative", width: "100%", padding: "160px 24px 140px",
+        position: "relative", width: "100%", padding: "clamp(100px, 15vw, 160px) 16px clamp(80px, 12vw, 140px)",
         background: C.slate900, color: "#fff", overflow: "hidden",
         display: "flex", alignItems: "center", justifyContent: "center",
       }}>
@@ -324,7 +352,7 @@ export default function PublicHome() {
         <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 50% 50%, transparent 0%, rgba(15,23,42,0.8) 100%)" }} />
 
         <div style={{ position: "relative", maxWidth: 1100, margin: "0 auto", width: "100%", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", zIndex: 10 }}>
-          <h1 style={{ fontSize: 64, fontWeight: 900, letterSpacing: "-2px", lineHeight: 1, marginBottom: 24, maxWidth: 850, textShadow: "0 4px 20px rgba(0,0,0,0.3)" }}>
+          <h1 className="r-hero-title" style={{ fontSize: "clamp(32px, 6vw, 64px)", fontWeight: 900, letterSpacing: "-2px", lineHeight: 1, marginBottom: 24, maxWidth: 850, textShadow: "0 4px 20px rgba(0,0,0,0.3)" }}>
             Révélez la vérité. <br />
             <span style={{
               background: `linear-gradient(135deg, ${C.blue500}, ${C.blue100})`,
@@ -332,11 +360,11 @@ export default function PublicHome() {
               WebkitTextFillColor: "transparent"
             }}>Atomisez la désinformation.</span>
           </h1>
-          <p style={{ fontSize: 20, color: C.slate300, maxWidth: 650, lineHeight: 1.6, marginBottom: 44, fontWeight: 500 }}>
+          <p className="r-hero-sub" style={{ fontSize: "clamp(15px, 2vw, 20px)", color: C.slate300, maxWidth: 650, lineHeight: 1.6, marginBottom: 44, fontWeight: 500 }}>
             FakeCheck combine l'analyse prédictive IA et une modération humaine traçable pour déconstruire les rumeurs à la source sur un registre immuable.
           </p>
 
-          <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+          <div className="r-hero-actions" style={{ display: "flex", gap: 10, marginTop: 20, flexWrap: "wrap", justifyContent: "center" }}>
             <button onClick={() => window.scrollTo({ top: document.getElementById('registre')?.offsetTop || 800, behavior: 'smooth' })} style={{ padding: "16px 32px", background: C.slate800, color: "#fff", fontWeight: 700, borderRadius: 12, fontSize: 16, border: "none", cursor: "pointer", boxShadow: "0 8px 24px rgba(22, 28, 40, 0.3)", transition: "all .2s" }}
               onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.02)"; e.currentTarget.style.background = C.slate900; }}
               onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.background = C.slate900; }}
@@ -382,7 +410,7 @@ export default function PublicHome() {
                 <div style={{ width: 40, height: 4, background: C.blue600, borderRadius: 2 }} />
                 <span style={{ fontSize: 13, fontWeight: 700, color: C.blue600, textTransform: "uppercase", letterSpacing: "0.1em" }}>Données en temps réel</span>
               </div>
-              <h1 style={{ fontSize: 40, fontWeight: 900, color: C.slate900, letterSpacing: "-1.5px", lineHeight: 1 }}>
+              <h1 style={{ fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 900, color: C.slate900, letterSpacing: "-1.5px", lineHeight: 1 }}>
                 Registre public <br /> des signalements
               </h1>
               <p style={{ fontSize: 16, color: C.slate500, marginTop: 16, lineHeight: 1.6, fontWeight: 500 }}>
@@ -391,7 +419,7 @@ export default function PublicHome() {
             </div>
 
             {/* Stats Cards Enhancement */}
-            <div style={{ display: "flex", gap: 20 }}>
+            <div className="r-stats-row" style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
               {[
                 { v: "24", l: "EN COURS", c: C.slate900, icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" },
                 { v: "1 203", l: "VÉRIFIÉS", c: C.blue600, icon: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" }
@@ -428,7 +456,7 @@ export default function PublicHome() {
           </div>
 
           {/* Filtres catégories (Modern Pills) */}
-          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10, marginBottom: 40 }}>
+          <div className="r-filters" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10, marginBottom: 40 }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: C.slate400, marginRight: 8 }}>Filtrer par :</span>
 
             {/* Bouton "Tous" */}
@@ -467,7 +495,7 @@ export default function PublicHome() {
       </section>
 
       {/* ── Grille de cartes ── */}
-      <main style={{ flex: 1, maxWidth: 1100, margin: "0 auto", width: "100%", padding: "0 24px 80px", zIndex: 2, position: "relative" }}>
+      <main style={{ flex: 1, maxWidth: 1100, margin: "0 auto", width: "100%", padding: "0 16px 80px", zIndex: 2, position: "relative" }}>
         {loading ? (
           <div style={{ display: "flex", justifyContent: "center", padding: "80px 0" }}>
             <svg style={{ animation: "spin 1s linear infinite" }} width="40" height="40" fill="none" viewBox="0 0 24 24">
@@ -476,9 +504,9 @@ export default function PublicHome() {
             </svg>
           </div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 24 }}>
+          <div className="r-cards-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(320px, 100%), 1fr))", gap: 24 }}>
             {rumors.length > 0 ? (
-              rumors.map(r => <ClaimCard key={r.id} c={r} rumorStatus={rumorStatuses[r.id as string]} />)
+              rumors.map(r => <ClaimCard key={r.id} c={r} rumorStatus={rumorStatuses[r.id as string]} author={users.find(u => u.id === r.user_id)} />)
             ) : (
               <p style={{ textAlign: "center", gridColumn: "1/-1", padding: 40, color: C.slate400 }}>Aucune rumeur signalée pour le moment.</p>
             )}

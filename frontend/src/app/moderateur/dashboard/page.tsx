@@ -278,13 +278,13 @@ export default function ModDashboard() {
   if (!user) return <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", background: C.slate950, color: "#fff", fontSize: 14, fontWeight: 600 }}>Initialisation sécurisée...</div>;
 
   return (
-    <div style={{ 
+    <div className="r-dashboard-layout" style={{ 
       minHeight: "100vh", display: "flex", background: C.slate50,
       backgroundImage: `radial-gradient(${C.slate300} 2px, transparent 2px)`,
       backgroundSize: "24px 24px"
     }} >
       
-      <aside style={{
+      <aside className="r-sidebar" style={{
         width: 240, background: C.slate950, borderRight: `1px solid ${C.sidebarBorder}`,
         display: "flex", flexDirection: "column", flexShrink: 0,
         position: "sticky", top: 0, height: "100vh",
@@ -363,13 +363,13 @@ export default function ModDashboard() {
                   </div>
                 </div>
 
-                <div style={{ background: "#fff", border: `1px solid ${C.slate200}`, borderRadius: 16, overflowX: "auto", boxShadow: "0 10px 40px -10px rgba(0,0,0,0.04)" }}>
+                <div className="r-table-wrapper" style={{ background: "#fff", border: `1px solid ${C.slate200}`, borderRadius: 16, overflowX: "auto", boxShadow: "0 10px 40px -10px rgba(0,0,0,0.04)" }}>
                   <div style={{ minWidth: 650 }}>
-                    <div style={{ display: "grid", gridTemplateColumns: "minmax(200px, 1fr) 120px 80px 100px 150px", padding: "16px", background: C.slate950, fontSize: 10, fontWeight: 800, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+                    <div className="r-table-header" style={{ display: "grid", gridTemplateColumns: "minmax(200px, 1fr) 120px 80px 100px 150px", padding: "16px", background: C.slate950, fontSize: 10, fontWeight: 800, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.1em" }}>
                       <div>Signalement</div>
                       <div>Statut</div>
-                      <div>ID</div>
-                      <div>Date</div>
+                      <div className="r-table-col-id">ID</div>
+                      <div className="r-table-col-date">Date</div>
                       <div style={{ textAlign: "right" }}>Action</div>
                     </div>
 
@@ -378,7 +378,7 @@ export default function ModDashboard() {
                         <div style={{ padding: 40, textAlign: "center" }}>Chargement...</div>
                       ) : rumors.length > 0 ? (
                         rumors.map((r, i) => (
-                          <div key={r.id} style={{ display: "grid", gridTemplateColumns: "minmax(200px, 1fr) 120px 80px 100px 150px", padding: "16px", borderBottom: i === rumors.length - 1 ? "none" : `1px solid ${C.slate100}`, alignItems: "center", transition: "all .2s" }}>
+                          <div key={r.id} className="r-table-row" style={{ display: "grid", gridTemplateColumns: "minmax(200px, 1fr) 120px 80px 100px 150px", padding: "16px", borderBottom: i === rumors.length - 1 ? "none" : `1px solid ${C.slate100}`, alignItems: "center", transition: "all .2s" }}>
                             <div style={{ display: "flex", alignItems: "flex-start", gap: 12, paddingRight: 20 }}>
                               <div style={{ width: 8, height: 8, borderRadius: "50%", background: C.slate300, marginTop: 6 }} />
                               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -387,8 +387,8 @@ export default function ModDashboard() {
                               </div>
                             </div>
                             <div><Badge statut={rumorStatuses[r.id as string] || "DEFAULT"} /></div>
-                            <div style={{ fontSize: 11, fontFamily: "monospace", color: C.slate400 }}>{r.id?.substring(0, 8)}</div>
-                            <div style={{ fontSize: 12, color: C.slate700 }}>{(r.createdAt || (r as any).created_at) ? new Date(r.createdAt || (r as any).created_at).toLocaleDateString('fr-FR') : "-"}</div>
+                            <div className="r-table-col-id" style={{ fontSize: 11, fontFamily: "monospace", color: C.slate400 }}>{r.id?.substring(0, 8)}</div>
+                            <div className="r-table-col-date" style={{ fontSize: 12, color: C.slate700 }}>{(r.createdAt || (r as any).created_at) ? new Date(r.createdAt || (r as any).created_at).toLocaleDateString('fr-FR') : "-"}</div>
                             <div style={{ textAlign: "right", display: "flex", gap: 8, justifyContent: "flex-end" }}>
                               <Link href={`/rumeur/${r.id}`} style={{ display: "inline-block", padding: "6px 14px", border: `1px solid ${C.slate200}`, borderRadius: 6, fontSize: 11, fontWeight: 700, color: C.slate700, textDecoration: "none", background: "#fff" }}>Détail</Link>
                             </div>

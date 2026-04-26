@@ -43,28 +43,28 @@ export default function MethodePage() {
   return (
     <div style={{ minHeight: "100vh", background: C.slate50, backgroundImage: "radial-gradient(#cbd5e1 2px, transparent 2px)", backgroundSize: "24px 24px" }}>
       {/* Navbar */}
-      <header style={{ position: "fixed", top: 12, left: "50%", transform: "translateX(-50%)", width: "calc(100% - 24px)", maxWidth: 1100, zIndex: 100, background: "rgba(255,255,255,0.75)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.4)", borderRadius: 16, boxShadow: "0 8px 32px rgba(0,0,0,0.05)" }}>
-        <div style={{ padding: "0 24px", height: 60, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <header className="r-navbar" style={{ position: "fixed", top: 12, left: "50%", transform: "translateX(-50%)", width: "calc(100% - 24px)", maxWidth: 1100, zIndex: 100, background: "rgba(255,255,255,0.75)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.4)", borderRadius: 16, boxShadow: "0 8px 32px rgba(0,0,0,0.05)" }}>
+        <div className="r-navbar-inner" style={{ padding: "0 24px", height: 60, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <Link href="/" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none" }}>
             <img src="/logo.png" alt="Logo" style={{ width: 32, height: 32, borderRadius: 8 }} />
-            <span style={{ fontWeight: 800, fontSize: 18, color: C.slate900, letterSpacing: "-0.5px" }}>FakeCheck</span>
+            <span className="r-brand-text" style={{ fontWeight: 800, fontSize: 18, color: C.slate900, letterSpacing: "-0.5px" }}>FakeCheck</span>
           </Link>
-          <nav style={{ display: "flex", gap: 8 }}>
+          <nav className="r-nav-links" style={{ display: "flex", gap: 8 }}>
             {[{ label: "Rumeurs", href: "/#registre" }, { label: "Méthode", href: "/methode" }, { label: "Docs", href: "/docs" }].map(n => (
-              <Link key={n.href} href={n.href} style={{ padding: "8px 12px", fontSize: 13, fontWeight: 600, color: n.href === "/methode" ? C.blue600 : C.slate600, borderRadius: 8, textDecoration: "none", background: n.href === "/methode" ? C.blue50 : "transparent" }}>{n.label}</Link>
+              <Link key={n.href} href={n.href} className="r-nav-secondary" style={{ padding: "8px 12px", fontSize: 13, fontWeight: 600, color: n.href === "/methode" ? C.blue600 : C.slate600, borderRadius: 8, textDecoration: "none", background: n.href === "/methode" ? C.blue50 : "transparent" }}>{n.label}</Link>
             ))}
             <Link href="/login" style={{ padding: "8px 16px", fontSize: 13, fontWeight: 700, background: C.slate900, color: "#fff", borderRadius: 8, textDecoration: "none" }}>Connexion</Link>
           </nav>
         </div>
       </header>
 
-      <main style={{ maxWidth: 900, margin: "0 auto", padding: "120px 24px 80px" }}>
+      <main style={{ maxWidth: 900, margin: "0 auto", padding: "120px 16px 80px" }}>
         {/* Header */}
         <div style={{ textAlign: "center", marginBottom: 80 }}>
           <div style={{ display: "inline-block", padding: "6px 16px", background: C.blue50, color: C.blue600, borderRadius: 100, fontSize: 12, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 20 }}>
             Protocole TWIST
           </div>
-          <h1 style={{ fontSize: 52, fontWeight: 900, color: C.slate900, letterSpacing: "-2px", lineHeight: 1.1, marginBottom: 20 }}>
+          <h1 style={{ fontSize: "clamp(32px, 6vw, 52px)", fontWeight: 900, color: C.slate900, letterSpacing: "-2px", lineHeight: 1.1, marginBottom: 20 }}>
             La méthode de<br /><span style={{ color: C.blue600 }}>vérification</span>
           </h1>
           <p style={{ fontSize: 18, color: C.slate500, lineHeight: 1.7, maxWidth: 600, margin: "0 auto" }}>
@@ -73,7 +73,7 @@ export default function MethodePage() {
         </div>
 
         {/* Steps */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+        <div className="r-method-steps" style={{ display: "flex", flexDirection: "column", gap: 24 }}>
           {steps.map((step, i) => (
             <div key={step.num} style={{ display: "flex", gap: 24, alignItems: "flex-start" }}>
               {/* Connector */}
@@ -84,7 +84,7 @@ export default function MethodePage() {
                 {i < steps.length - 1 && <div style={{ width: 2, flex: 1, minHeight: 32, background: C.slate200, marginTop: 8 }} />}
               </div>
               {/* Card */}
-              <div style={{ flex: 1, background: "#fff", borderRadius: 16, padding: "24px 28px", border: `1px solid ${C.slate200}`, boxShadow: "0 2px 8px rgba(0,0,0,0.03)", marginBottom: i < steps.length - 1 ? 0 : 0 }}>
+              <div style={{ flex: 1, background: "#fff", borderRadius: 16, padding: "20px 20px", border: `1px solid ${C.slate200}`, boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
                   <div style={{ width: 36, height: 36, borderRadius: 10, background: step.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke={step.color} strokeWidth={2}>

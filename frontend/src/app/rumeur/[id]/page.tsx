@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { RumorsService, ClaimsService, EvidenceService, VerdictService } from "@/api";
-import type { Rumor } from "@/api";
+import { RumorsService, ClaimsService, EvidenceService, VerdictService, UsersService } from "@/api";
+import type { Rumor, User } from "@/api";
 
 const C = {
   blue600: "#2563eb", blue700: "#1d4ed8", blue50: "#eff6ff", blue100: "#dbeafe",
@@ -58,11 +58,12 @@ export default function RumeurDetailPage() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [rData, evRes, claimsRes, verdictsRes] = await Promise.all([
+        const [rData, evRes, claimsRes, verdictsRes, usersRes] = await Promise.all([
           RumorsService.getApiRumors1(id as string),
           EvidenceService.getApiEvidence1(id as string).catch(() => []),
           ClaimsService.getApiClaimsAll().catch(() => ({ data: [] })),
-          VerdictService.getApiVerdictsAll().catch(() => ({ data: [] }))
+          VerdictService.getApiVerdictsAll().catch(() => ({ data: [] })),
+          UsersService.getApiUsers().catch(() => ({ data: [] }))
         ]);
 
         const rumorData = (rData as any).data || rData;
@@ -110,6 +111,24 @@ export default function RumeurDetailPage() {
           .filter(v => rumorClaimIds.includes(v.claim_id))
           .sort((a, b) => new Date(a.published_at || 0).getTime() - new Date(b.published_at || 0).getTime());
 
+        const usersList = [...((usersRes as any).data || [])];
+        const fetchedUserIds = new Set(usersList.map((u: User) => u.id));
+        const missingUserIds = Array.from(new Set(rumorVerdicts.map(v => v.moderator_id).filter(Boolean).filter(id => !fetchedUserIds.has(id))));
+
+        if (missingUserIds.length > 0) {
+          const missingUsers = await Promise.all(
+            missingUserIds.map(id => UsersService.getApiUsers1(id).catch(() => null))
+          );
+          missingUsers.forEach(u => {
+            if (u) usersList.push(u);
+          });
+        }
+
+        const usersMap: Record<string, string> = {};
+        usersList.forEach((u: User) => {
+          if (u.id && u.name) usersMap[u.id] = u.name;
+        });
+
         if (rumorVerdicts.length > 0) {
           const mappedVerdicts: Verdict[] = rumorVerdicts.map((v, idx) => ({
             id: `V${idx + 1}`,
@@ -118,7 +137,7 @@ export default function RumeurDetailPage() {
             sources_pour: v.evidences_for || [],
             sources_contre: v.evidences_against || [],
             regle: v.summary || "Règle appliquée",
-            auteur: v.moderator_name || "Modérateur",
+            auteur: v.moderator_id ? (usersMap[v.moderator_id] || "Modérateur Anonyme") : (v.moderator_name || "Modérateur"),
             date: v.published_at ? new Date(v.published_at).toLocaleString() : "",
             supersede: idx > 0 ? `V${idx}` : null,
             note: v.summary || ""
@@ -316,14 +335,14 @@ export default function RumeurDetailPage() {
       backgroundSize: "24px 24px"
     }}>
       {/* ── Navbar (Harmonisée Glassmorphism) ── */}
-      <header style={{ 
+      <header className="r-navbar" style={{ 
         position: "fixed", top: 12, left: "50%", transform: "translateX(-50%)", 
         width: "calc(100% - 24px)", maxWidth: 1200, zIndex: 100,
         background: "rgba(255, 255, 255, 0.75)", backdropFilter: "blur(12px)",
         border: "1px solid rgba(255, 255, 255, 0.4)", borderRadius: 16,
         boxShadow: `0 8px 32px ${C.slate900}10`
       }}>
-        <div style={{ padding: "0 24px", height: 60, display: "flex", alignItems: "center", gap: 16 }}>
+        <div className="r-navbar-inner" style={{ padding: "0 24px", height: 60, display: "flex", alignItems: "center", gap: 16 }}>
           <Link href="/moderateur/dashboard" style={{ color: C.slate600, display: "flex", alignItems: "center", textDecoration: "none", fontWeight: 700, fontSize: 13, transition: "color .2s" }}
             onMouseEnter={e => e.currentTarget.style.color = C.slate900}
             onMouseLeave={e => e.currentTarget.style.color = C.slate600}
@@ -335,7 +354,7 @@ export default function RumeurDetailPage() {
         </div>
       </header>
 
-      <main style={{ maxWidth: 1200, margin: "0 auto", padding: "100px 24px 32px", display: "grid", gridTemplateColumns: "1fr 380px", gap: 32 }}>
+      <main className="r-detail-grid" style={{ maxWidth: 1200, margin: "0 auto", padding: "100px 16px 32px", display: "grid", gridTemplateColumns: "1fr min(380px, 100%)", gap: 24 }}>
 
         {/* Colonne Principale */}
         <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
@@ -446,7 +465,9 @@ export default function RumeurDetailPage() {
                       }}>
                         {getStatusColor(v.status).label}
                       </span>
-                      <span style={{ fontSize: 11, color: C.slate400 }}>{v.date}</span>
+                      <span style={{ fontSize: 11, color: C.slate400 }}>
+                        {v.date} &bull; Par <strong style={{ color: C.slate600 }}>{v.auteur}</strong>
+                      </span>
                     </div>
                     {v.supersede && (
                       <div style={{ fontSize: 11, color: C.slate500, marginBottom: 8, background: C.slate100, display: "inline-block", padding: "2px 6px", borderRadius: 4 }}>
