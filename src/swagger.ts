@@ -678,48 +678,143 @@ export const swaggerSpec = {
     },
 
     // ── EVIDENCE ──────────────────────────────────────────────────────
-    "/api/evidence/{id}": {
-      get: {
-        tags: ["Evidence"], summary: "Détail d'une preuve", security: [],
-        parameters: [{ in: "path", name: "id", required: true, schema: { type: "string" } }],
-        responses: {
-          "200": { description: "Preuve trouvée", content: { "application/json": { schema: { "$ref": "#/components/schemas/Evidence" } } } },
-          "404": { description: "Introuvable", content: { "application/json": { schema: { "$ref": "#/components/schemas/ErrorResponse" } } } }
+  "/api/evidence/{id}": {
+  get: {
+    tags: ["Evidence"],
+    summary: "Détail d'une preuve",
+    security: [],
+    parameters: [
+      {
+        in: "path",
+        name: "id",
+        required: true,
+        schema: { type: "string" }
+      }
+    ],
+    responses: {
+      "200": {
+        description: "Preuve trouvée",
+        content: {
+          "application/json": {
+            schema: {
+              "$ref": "#/components/schemas/Evidence"
+            }
+          }
+        }
+      },
+      "404": {
+        description: "Introuvable",
+        content: {
+          "application/json": {
+            schema: {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
         }
       }
-    },
+    }
+  }
+},
 
-    "/api/evidence": {
-      post: {
-        tags: ["Evidence"], summary: "Ajouter une preuve",
-        requestBody: {
-          required: true,
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                required: ["type", "file_url", "t_event", "t_observation", "hash_file", "rumor_id", "uploaded_by"],
-                properties: {
-                  type: { type: "string", enum: ["video", "audio", "text", "image"] },
-                  file_url: { type: "string", example: "https://example.com/media.mp4" },
-                  t_event: { type: "string", format: "date-time" },
-                  t_observation: { type: "string", format: "date-time" },
-                  hash_file: { type: "string" },
-                  metadata: { type: "object" },
-                  rumor_id: { type: "string" },
-                  uploaded_by: { type: "string" }
-                }
+"/api/evidence": {
+  get: {
+    tags: ["Evidence"],
+    summary: "Lister toutes les preuves",
+    security: [],
+    parameters: [
+      {
+        in: "query",
+        name: "rumor_id",
+        schema: { type: "string" },
+        description: "Filtrer par rumeur"
+      },
+      {
+        in: "query",
+        name: "type",
+        schema: {
+          type: "string",
+          enum: ["video", "audio", "text", "image"]
+        }
+      },
+      {
+        in: "query",
+        name: "limit",
+        schema: { type: "integer", default: 20 }
+      },
+      {
+        in: "query",
+        name: "offset",
+        schema: { type: "integer", default: 0 }
+      }
+    ],
+    responses: {
+      "200": {
+        description: "Liste des preuves",
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                success: { type: "boolean" },
+                data: {
+                  type: "array",
+                  items: {
+                    "$ref": "#/components/schemas/Evidence"
+                  }
+                },
+                total: { type: "integer" }
               }
             }
           }
-        },
-        responses: {
-          "201": { description: "Preuve ajoutée" },
-          "401": { description: "Non authentifié" }
+        }
+      }
+    }
+  },
+
+  post: {
+    tags: ["Evidence"],
+    summary: "Ajouter une preuve",
+    requestBody: {
+      required: true,
+      content: {
+        "application/json": {
+          schema: {
+            type: "object",
+            required: [
+              "type",
+              "file_url",
+              "t_event",
+              "t_observation",
+              "hash_file",
+              "rumor_id",
+              "uploaded_by"
+            ],
+            properties: {
+              type: {
+                type: "string",
+                enum: ["video", "audio", "text", "image"]
+              },
+              file_url: {
+                type: "string",
+                example: "https://example.com/media.mp4"
+              },
+              t_event: { type: "string", format: "date-time" },
+              t_observation: { type: "string", format: "date-time" },
+              hash_file: { type: "string" },
+              metadata: { type: "object" },
+              rumor_id: { type: "string" },
+              uploaded_by: { type: "string" }
+            }
+          }
         }
       }
     },
-
+    responses: {
+      "201": { description: "Preuve ajoutée" },
+      "401": { description: "Non authentifié" }
+    }
+  }
+},
     // ── THEMES ──────────────────────────────────────────────────────
     "/api/themes": {
       get: {
