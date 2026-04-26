@@ -10,6 +10,7 @@ export const swaggerSpec = {
   },
   servers: [
     { url: "https://hackverse-2026.vercel.app", description: "Production" },
+    { url: "https://hackathon-3-ubuntu.vercel.app", description: "Production" },
     { url: "http://localhost:3000", description: "Développement" }
   ],
   components: {
@@ -467,75 +468,75 @@ export const swaggerSpec = {
 
     //----rumorRelations--------------------------
     "/api/rumor-relations": {
-  post: {
-    tags: ["Rumor Relations"],
-    summary: "Lier une rumeur à une ou plusieurs rumeurs sources",
-    description: "Crée une relation BASED_ON entre une rumeur et ses rumeurs parentes",
-    requestBody: {
-      required: true,
-      content: {
-        "application/json": {
-          schema: {
-            type: "object",
-            required: ["rumor_id", "parent_rumor_id"],
-            properties: {
-              rumor_id: { type: "string", example: "rumor_1" },
-              parent_rumor_id: { type: "string", example: "rumor_2" },
-              relation_type: { type: "string", example: "BASED_ON" }
+      post: {
+        tags: ["Rumor Relations"],
+        summary: "Lier une rumeur à une ou plusieurs rumeurs sources",
+        description: "Crée une relation BASED_ON entre une rumeur et ses rumeurs parentes",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["rumor_id", "parent_rumor_id"],
+                properties: {
+                  rumor_id: { type: "string", example: "rumor_1" },
+                  parent_rumor_id: { type: "string", example: "rumor_2" },
+                  relation_type: { type: "string", example: "BASED_ON" }
+                }
+              }
             }
           }
+        },
+        responses: {
+          "201": { description: "Relation créée avec succès" },
+          "400": { description: "Données invalides" },
+          "500": { description: "Erreur serveur" }
         }
       }
     },
-    responses: {
-      "201": { description: "Relation créée avec succès" },
-      "400": { description: "Données invalides" },
-      "500": { description: "Erreur serveur" }
-    }
-  }
-},
 
-"/api/rumor-relations/{rumor_id}": {
-  get: {
-    tags: ["Rumor Relations"],
-    summary: "Récupérer toutes les relations d'une rumeur",
-    parameters: [
-      {
-        in: "path",
-        name: "rumor_id",
-        required: true,
-        schema: { type: "string" },
-        example: "rumor_1"
+    "/api/rumor-relations/{rumor_id}": {
+      get: {
+        tags: ["Rumor Relations"],
+        summary: "Récupérer toutes les relations d'une rumeur",
+        parameters: [
+          {
+            in: "path",
+            name: "rumor_id",
+            required: true,
+            schema: { type: "string" },
+            example: "rumor_1"
+          }
+        ],
+        responses: {
+          "200": { description: "Relations récupérées avec succès" },
+          "404": { description: "Rumeur introuvable" },
+          "500": { description: "Erreur serveur" }
+        }
       }
-    ],
-    responses: {
-      "200": { description: "Relations récupérées avec succès" },
-      "404": { description: "Rumeur introuvable" },
-      "500": { description: "Erreur serveur" }
-    }
-  }
-},
+    },
 
-"/api/rumor-relations/{id}": {
-  delete: {
-    tags: ["Rumor Relations"],
-    summary: "Supprimer une relation entre rumeurs",
-    parameters: [
-      {
-        in: "path",
-        name: "id",
-        required: true,
-        schema: { type: "string" },
-        example: "relation_1"
+    "/api/rumor-relations/{id}": {
+      delete: {
+        tags: ["Rumor Relations"],
+        summary: "Supprimer une relation entre rumeurs",
+        parameters: [
+          {
+            in: "path",
+            name: "id",
+            required: true,
+            schema: { type: "string" },
+            example: "relation_1"
+          }
+        ],
+        responses: {
+          "200": { description: "Relation supprimée avec succès" },
+          "404": { description: "Relation introuvable" },
+          "500": { description: "Erreur serveur" }
+        }
       }
-    ],
-    responses: {
-      "200": { description: "Relation supprimée avec succès" },
-      "404": { description: "Relation introuvable" },
-      "500": { description: "Erreur serveur" }
-    }
-  }
-},
+    },
     // ── CLAIMS ──────────────────────────────────────────────────────
     "/api/claims": {
       post: {
@@ -678,143 +679,143 @@ export const swaggerSpec = {
     },
 
     // ── EVIDENCE ──────────────────────────────────────────────────────
-  "/api/evidence/{id}": {
-  get: {
-    tags: ["Evidence"],
-    summary: "Détail d'une preuve",
-    security: [],
-    parameters: [
-      {
-        in: "path",
-        name: "id",
-        required: true,
-        schema: { type: "string" }
-      }
-    ],
-    responses: {
-      "200": {
-        description: "Preuve trouvée",
-        content: {
-          "application/json": {
-            schema: {
-              "$ref": "#/components/schemas/Evidence"
-            }
+    "/api/evidence/{id}": {
+      get: {
+        tags: ["Evidence"],
+        summary: "Détail d'une preuve",
+        security: [],
+        parameters: [
+          {
+            in: "path",
+            name: "id",
+            required: true,
+            schema: { type: "string" }
           }
-        }
-      },
-      "404": {
-        description: "Introuvable",
-        content: {
-          "application/json": {
-            schema: {
-              "$ref": "#/components/schemas/ErrorResponse"
+        ],
+        responses: {
+          "200": {
+            description: "Preuve trouvée",
+            content: {
+              "application/json": {
+                schema: {
+                  "$ref": "#/components/schemas/Evidence"
+                }
+              }
             }
-          }
-        }
-      }
-    }
-  }
-},
-
-"/api/evidence": {
-  get: {
-    tags: ["Evidence"],
-    summary: "Lister toutes les preuves",
-    security: [],
-    parameters: [
-      {
-        in: "query",
-        name: "rumor_id",
-        schema: { type: "string" },
-        description: "Filtrer par rumeur"
-      },
-      {
-        in: "query",
-        name: "type",
-        schema: {
-          type: "string",
-          enum: ["video", "audio", "text", "image"]
-        }
-      },
-      {
-        in: "query",
-        name: "limit",
-        schema: { type: "integer", default: 20 }
-      },
-      {
-        in: "query",
-        name: "offset",
-        schema: { type: "integer", default: 0 }
-      }
-    ],
-    responses: {
-      "200": {
-        description: "Liste des preuves",
-        content: {
-          "application/json": {
-            schema: {
-              type: "object",
-              properties: {
-                success: { type: "boolean" },
-                data: {
-                  type: "array",
-                  items: {
-                    "$ref": "#/components/schemas/Evidence"
-                  }
-                },
-                total: { type: "integer" }
+          },
+          "404": {
+            description: "Introuvable",
+            content: {
+              "application/json": {
+                schema: {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           }
         }
       }
-    }
-  },
+    },
 
-  post: {
-    tags: ["Evidence"],
-    summary: "Ajouter une preuve",
-    requestBody: {
-      required: true,
-      content: {
-        "application/json": {
-          schema: {
-            type: "object",
-            required: [
-              "type",
-              "file_url",
-              "t_event",
-              "t_observation",
-              "hash_file",
-              "rumor_id",
-              "uploaded_by"
-            ],
-            properties: {
-              type: {
-                type: "string",
-                enum: ["video", "audio", "text", "image"]
-              },
-              file_url: {
-                type: "string",
-                example: "https://example.com/media.mp4"
-              },
-              t_event: { type: "string", format: "date-time" },
-              t_observation: { type: "string", format: "date-time" },
-              hash_file: { type: "string" },
-              metadata: { type: "object" },
-              rumor_id: { type: "string" },
-              uploaded_by: { type: "string" }
+    "/api/evidence": {
+      get: {
+        tags: ["Evidence"],
+        summary: "Lister toutes les preuves",
+        security: [],
+        parameters: [
+          {
+            in: "query",
+            name: "rumor_id",
+            schema: { type: "string" },
+            description: "Filtrer par rumeur"
+          },
+          {
+            in: "query",
+            name: "type",
+            schema: {
+              type: "string",
+              enum: ["video", "audio", "text", "image"]
+            }
+          },
+          {
+            in: "query",
+            name: "limit",
+            schema: { type: "integer", default: 20 }
+          },
+          {
+            in: "query",
+            name: "offset",
+            schema: { type: "integer", default: 0 }
+          }
+        ],
+        responses: {
+          "200": {
+            description: "Liste des preuves",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    success: { type: "boolean" },
+                    data: {
+                      type: "array",
+                      items: {
+                        "$ref": "#/components/schemas/Evidence"
+                      }
+                    },
+                    total: { type: "integer" }
+                  }
+                }
+              }
             }
           }
         }
+      },
+
+      post: {
+        tags: ["Evidence"],
+        summary: "Ajouter une preuve",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: [
+                  "type",
+                  "file_url",
+                  "t_event",
+                  "t_observation",
+                  "hash_file",
+                  "rumor_id",
+                  "uploaded_by"
+                ],
+                properties: {
+                  type: {
+                    type: "string",
+                    enum: ["video", "audio", "text", "image"]
+                  },
+                  file_url: {
+                    type: "string",
+                    example: "https://example.com/media.mp4"
+                  },
+                  t_event: { type: "string", format: "date-time" },
+                  t_observation: { type: "string", format: "date-time" },
+                  hash_file: { type: "string" },
+                  metadata: { type: "object" },
+                  rumor_id: { type: "string" },
+                  uploaded_by: { type: "string" }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          "201": { description: "Preuve ajoutée" },
+          "401": { description: "Non authentifié" }
+        }
       }
     },
-    responses: {
-      "201": { description: "Preuve ajoutée" },
-      "401": { description: "Non authentifié" }
-    }
-  }
-},
     // ── THEMES ──────────────────────────────────────────────────────
     "/api/themes": {
       get: {
