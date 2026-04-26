@@ -1,5 +1,8 @@
 "use client";
 import Link from "next/link";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { getAuthToken, setAuthToken } from "@/services/api-client";
 
 const C = {
   blue600: "#2563eb", blue50: "#eff6ff", blue100: "#dbeafe",
@@ -38,6 +41,25 @@ const endpoints = [
 ];
 
 export default function DocsPage() {
+  const router = useRouter();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    const token = getAuthToken();
+    setIsLoggedIn(!!token);
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) setUser(JSON.parse(storedUser));
+  }, []);
+
+  const handleLogout = () => {
+    setAuthToken(null);
+    localStorage.removeItem("user");
+    setIsLoggedIn(false);
+    setUser(null);
+    router.refresh();
+  };
+
   return (
     <div style={{ minHeight: "100vh", background: C.slate50, backgroundImage: "radial-gradient(#cbd5e1 2px, transparent 2px)", backgroundSize: "24px 24px" }}>
       {/* Navbar */}
@@ -47,11 +69,52 @@ export default function DocsPage() {
             <img src="/logo.png" alt="Logo" style={{ width: 32, height: 32, borderRadius: 8 }} />
             <span className="r-brand-text" style={{ fontWeight: 800, fontSize: 18, color: C.slate900, letterSpacing: "-0.5px" }}>FakeCheck</span>
           </Link>
-          <nav className="r-nav-links" style={{ display: "flex", gap: 8 }}>
-            {[{ label: "Rumeurs", href: "/#registre" }, { label: "Méthode", href: "/methode" }, { label: "Docs", href: "/docs" }].map(n => (
-              <Link key={n.href} href={n.href} className="r-nav-secondary" style={{ padding: "8px 12px", fontSize: 13, fontWeight: 600, color: n.href === "/docs" ? C.blue600 : C.slate600, borderRadius: 8, textDecoration: "none", background: n.href === "/docs" ? C.blue50 : "transparent" }}>{n.label}</Link>
+          <nav className="r-nav-links" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            {[
+              { label: "Rumeurs", href: "/" },
+              { label: "Méthode", href: "/methode" },
+              { label: "Docs", href: "/docs" }
+            ].map(n => (
+              <Link key={n.label} href={n.href} className="r-nav-secondary" style={{ padding: "8px 12px", fontSize: 13, fontWeight: 600, color: n.href === "/docs" ? C.blue600 : C.slate600, borderRadius: 8, textDecoration: "none", background: n.href === "/docs" ? C.blue50 : "transparent", transition: "all .2s" }}
+                onMouseEnter={e => { if (n.href !== "/docs") { e.currentTarget.style.color = C.slate900; e.currentTarget.style.background = C.slate100; } }}
+                onMouseLeave={e => { if (n.href !== "/docs") { e.currentTarget.style.color = C.slate600; e.currentTarget.style.background = "transparent"; } }}
+              >
+                {n.label}
+              </Link>
             ))}
-            <Link href="/login" style={{ padding: "8px 16px", fontSize: 13, fontWeight: 700, background: C.slate900, color: "#fff", borderRadius: 8, textDecoration: "none" }}>Connexion</Link>
+            <div style={{ width: 1, height: 16, background: C.slate200, margin: "0 10px" }} />
+
+            {isLoggedIn ? (
+              <>
+                <Link href={user?.role === "moderator" ? "/moderateur/dashboard" : "/profile"} style={{ padding: "8px 16px", fontSize: 13, fontWeight: 600, color: C.blue600, borderRadius: 8, textDecoration: "none", transition: "all .2s" }}
+                  onMouseEnter={e => e.currentTarget.style.background = C.blue50}
+                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                >
+                  {user?.name || "Mon Profil"}
+                </Link>
+                <button onClick={handleLogout} style={{ padding: "8px 16px", fontSize: 13, fontWeight: 700, color: C.slate700, borderRadius: 8, background: "none", border: "none", cursor: "pointer", transition: "all .2s" }}
+                  onMouseEnter={e => e.currentTarget.style.background = C.slate100}
+                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                >
+                  Déconnexion
+                </button>
+              </>
+            ) : (
+              <>
+                <Link href="/login" style={{ padding: "8px 16px", fontSize: 13, fontWeight: 600, color: C.slate700, borderRadius: 8, textDecoration: "none", transition: "all .2s" }}
+                  onMouseEnter={e => e.currentTarget.style.background = C.slate100}
+                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                >
+                  Connexion
+                </Link>
+                <Link href="/register" style={{ padding: "8px 18px", background: C.slate900, color: "#fff", fontSize: 13, fontWeight: 700, borderRadius: 8, textDecoration: "none", boxShadow: `0 4px 12px ${C.slate900}30`, transition: "transform .2s" }}
+                  onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.background = C.slate800; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.background = C.slate900; }}
+                >
+                  S'inscrire
+                </Link>
+              </>
+            )}
           </nav>
         </div>
       </header>
