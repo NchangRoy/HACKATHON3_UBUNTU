@@ -72,4 +72,3 @@ router.get("/:id", getModeratorById);
 router.post("/", createModerator);
 
 export default router;
-
