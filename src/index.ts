@@ -12,7 +12,8 @@ import claimRoutes from "./routes/claim.routes";
 import evidenceRoutes from "./routes/evidence.routes";
 import verdictRoutes from "./routes/verdict.routes";
 import moderatorRoutes from "./routes/moderator.routes";
-import rumorRelations from "./routes/rumorRelation.routes"
+import rumorRelations from "./routes/rumorRelation.routes";
+import userRoutes from "./routes/user.routes";
 import { pool } from "./config/db";
 
 const app: Express = express();
@@ -55,7 +56,8 @@ app.use("/api/claims", claimRoutes);
 app.use("/api/evidence", evidenceRoutes);
 app.use("/api/verdicts", verdictRoutes);
 app.use("/api/moderators", moderatorRoutes);
-app.use("/api/rumor-relations",rumorRelations)
+app.use("/api/rumor-relations", rumorRelations);
+app.use("/api/users", userRoutes);
 
 app.get("/health", async (_req, res) => {
   try {
