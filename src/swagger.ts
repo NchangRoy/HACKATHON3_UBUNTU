@@ -458,6 +458,84 @@ export const swaggerSpec = {
       }
     },
 
+    // ── VERDICTS ──────────────────────────────────────────────────────
+    "/api/verdicts/{id}": {
+      get: {
+        tags: ["Verdict"], summary: "Détail d'un verdict", security: [],
+        parameters: [{ in: "path", name: "id", required: true, schema: { type: "string" } }],
+        responses: {
+          "200": { description: "Verdict trouvé", content: { "application/json": { schema: { "$ref": "#/components/schemas/Verdict" } } } },
+          "404": { description: "Introuvable", content: { "application/json": { schema: { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+
+    "/api/verdicts": {
+      post: {
+        tags: ["Verdict"], summary: "Émettre un verdict",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["claim_id", "verdict_type", "confidence_score", "summary"],
+                properties: {
+                  claim_id: { type: "string" },
+                  verdict_type: { type: "string" },
+                  confidence_score: { type: "number" },
+                  summary: { type: "string" }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          "201": { description: "Verdict créé", content: { "application/json": { schema: { "$ref": "#/components/schemas/Verdict" } } } },
+          "401": { description: "Non authentifié" }
+        }
+      }
+    },
+
+    // ── EVIDENCE ──────────────────────────────────────────────────────
+    "/api/evidence/{id}": {
+      get: {
+        tags: ["Evidence"], summary: "Détail d'une preuve", security: [],
+        parameters: [{ in: "path", name: "id", required: true, schema: { type: "string" } }],
+        responses: {
+          "200": { description: "Preuve trouvée", content: { "application/json": { schema: { "$ref": "#/components/schemas/Evidence" } } } },
+          "404": { description: "Introuvable", content: { "application/json": { schema: { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+
+    "/api/evidence": {
+      post: {
+        tags: ["Evidence"], summary: "Ajouter une preuve",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["claim_id", "evidence_type", "url", "source"],
+                properties: {
+                  claim_id: { type: "string" },
+                  evidence_type: { type: "string" },
+                  url: { type: "string" },
+                  source: { type: "string" }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          "201": { description: "Preuve ajoutée" },
+          "401": { description: "Non authentifié" }
+        }
+      }
+    },
+
     // ── THEMES ──────────────────────────────────────────────────────
     "/api/themes": {
       get: {
