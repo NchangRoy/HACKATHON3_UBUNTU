@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { RumorsService, ThemesService, ClaimsService, VerdictService, UsersService } from "@/api";
+import { RumorsService, ThemesService, ClaimsService, VerdictService, UsersService, ModeratorsService } from "@/api";
 import type { Rumor, User } from "@/api";
 import { getAuthToken, setAuthToken } from "@/services/api-client";
 
@@ -129,24 +129,24 @@ function ClaimCard({ c, rumorStatus, author }: { c: Rumor; rumorStatus?: string;
               <span style={{ fontSize: 12, color: C.slate400, fontWeight: 600 }}>
                 {rawDate
                   ? (() => {
-                      const d = new Date(rawDate);
-                      const day = String(d.getUTCDate()).padStart(2, '0');
-                      const month = String(d.getUTCMonth() + 1).padStart(2, '0');
-                      const year = d.getUTCFullYear();
-                      const h = String(d.getUTCHours()).padStart(2, '0');
-                      const m = String(d.getUTCMinutes()).padStart(2, '0');
-                      return `${day}/${month}/${year} à ${h}:${m}`;
-                    })()
+                    const d = new Date(rawDate);
+                    const day = String(d.getUTCDate()).padStart(2, '0');
+                    const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+                    const year = d.getUTCFullYear();
+                    const h = String(d.getUTCHours()).padStart(2, '0');
+                    const m = String(d.getUTCMinutes()).padStart(2, '0');
+                    return `${day}/${month}/${year} à ${h}:${m}`;
+                  })()
                   : "--/--/----"}
               </span>
             </div>
-            
+
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke={C.slate400} strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>
               <span style={{ fontSize: 12, color: C.slate500, fontWeight: 500 }}>
-                {author?.name || "Anonyme"}
+                {author?.name || (c.user_id ? `Utilisateur #${c.user_id.substring(0, 5)}` : "Anonyme")}
               </span>
             </div>
           </div>
@@ -197,15 +197,22 @@ export default function PublicHome() {
     setRumors([]);
     try {
       const tid = themeId !== undefined ? themeId : (activeThemeId || undefined);
-      const [res, claimsRes, verdictsRes, usersRes] = await Promise.all([
+      const [res, claimsRes, verdictsRes, usersRes, modsRes] = await Promise.all([
         RumorsService.getApiRumors(tid),
         ClaimsService.getApiClaimsAll().catch(() => ({ data: [] })),
         VerdictService.getApiVerdictsAll().catch(() => ({ data: [] })),
-        UsersService.getApiUsers().catch(() => ({ data: [] }))
+        UsersService.getApiUsers().catch(() => ({ data: [] })),
+        ModeratorsService.getApiModerators().catch(() => ({ data: [] }))
       ]);
       let data = res.data || (Array.isArray(res) ? res : []);
-      
-      const fetchedUsers = [...((usersRes as any).data || [])];
+
+      const storedUser = typeof window !== "undefined" ? localStorage.getItem("user") : null;
+      const currentUser = storedUser ? JSON.parse(storedUser) : null;
+
+      const fetchedUsers = currentUser ? [currentUser] : [];
+      if ((usersRes as any).data) fetchedUsers.push(...(usersRes as any).data);
+      if ((modsRes as any).data) fetchedUsers.push(...(modsRes as any).data);
+
       const fetchedUserIds = new Set(fetchedUsers.map((u: any) => u.id));
       const userIdsToFetch = Array.from(new Set(data.map((r: any) => r.user_id).filter(Boolean)));
       const missingUserIds = userIdsToFetch.filter(id => !fetchedUserIds.has(id));

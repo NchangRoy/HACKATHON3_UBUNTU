@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { RumorsService, ClaimsService, EvidenceService, VerdictService, UsersService } from "@/api";
+import { RumorsService, ClaimsService, EvidenceService, VerdictService, UsersService, ModeratorsService } from "@/api";
 import type { Rumor, User } from "@/api";
 
 const C = {
@@ -40,9 +40,11 @@ export default function RumeurDetailPage() {
   const [auditLog, setAuditLog] = useState<any>(null);
   const [evidences, setEvidences] = useState<Evidence[]>(INITIAL_EVIDENCES);
   const [verdicts, setVerdicts] = useState<Verdict[]>(INITIAL_VERDICTS);
-  const [modalMode, setModalMode] = useState<"NONE" | "EVIDENCE" | "VERDICT" | "AUDIT">("NONE");
+  const [modalMode, setModalMode] = useState<"NONE" | "EVIDENCE" | "VERDICT" | "AUDIT" | "VERDICT_DETAIL">("NONE");
+  const [selectedVerdict, setSelectedVerdict] = useState<Verdict | null>(null);
   const [user, setUser] = useState<any>(null);
   const [claimId, setClaimId] = useState<string | null>(null);
+  const [usersMap, setUsersMap] = useState<Record<string, string>>({});
   const [penalRules, setPenalRules] = useState<{ id: string; title: string; description: string }[]>([]);
 
   useEffect(() => {
@@ -58,14 +60,22 @@ export default function RumeurDetailPage() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [rData, evRes, claimsRes, verdictsRes, usersRes] = await Promise.all([
+        const [rData, evRes, claimsRes, verdictsRes, usersRes, modsRes] = await Promise.all([
           RumorsService.getApiRumors1(id as string),
           EvidenceService.getApiEvidence1(id as string).catch(() => []),
           ClaimsService.getApiClaimsAll().catch(() => ({ data: [] })),
           VerdictService.getApiVerdictsAll().catch(() => ({ data: [] })),
-          UsersService.getApiUsers().catch(() => ({ data: [] }))
+          UsersService.getApiUsers().catch(() => ({ data: [] })),
+          ModeratorsService.getApiModerators().catch(() => ({ data: [] }))
         ]);
 
+        const storedUser = typeof window !== "undefined" ? localStorage.getItem("user") : null;
+        const currentUser = storedUser ? JSON.parse(storedUser) : null;
+        
+        const usersList = currentUser ? [currentUser] : [];
+        if ((usersRes as any).data) usersList.push(...(usersRes as any).data);
+        if ((modsRes as any).data) usersList.push(...(modsRes as any).data);
+        
         const rumorData = (rData as any).data || rData;
         setRumor(rumorData);
         
@@ -111,23 +121,34 @@ export default function RumeurDetailPage() {
           .filter(v => rumorClaimIds.includes(v.claim_id))
           .sort((a, b) => new Date(a.published_at || 0).getTime() - new Date(b.published_at || 0).getTime());
 
-        const usersList = [...((usersRes as any).data || [])];
-        const fetchedUserIds = new Set(usersList.map((u: User) => u.id));
-        const missingUserIds = Array.from(new Set(rumorVerdicts.map(v => v.moderator_id).filter(Boolean).filter(id => !fetchedUserIds.has(id))));
+        if (rumorVerdicts.length > 0) {
+          const fetchedUserIds = new Set(usersList.map((u: User) => u.id));
+          const missingUserIds = Array.from(new Set(rumorVerdicts.map(v => v.moderator_id).filter(Boolean).filter(id => !fetchedUserIds.has(id))));
 
-        if (missingUserIds.length > 0) {
-          const missingUsers = await Promise.all(
-            missingUserIds.map(id => UsersService.getApiUsers1(id).catch(() => null))
-          );
-          missingUsers.forEach(u => {
-            if (u) usersList.push(u);
-          });
+          if (missingUserIds.length > 0) {
+            const missingUsers = await Promise.all(
+              missingUserIds.map(id => UsersService.getApiUsers1(id).catch(() => null))
+            );
+            missingUsers.forEach(u => {
+              if (u) usersList.push(u);
+            });
+          }
         }
 
         const usersMap: Record<string, string> = {};
         usersList.forEach((u: User) => {
           if (u.id && u.name) usersMap[u.id] = u.name;
         });
+
+        // Enrichissement "intelligent" : si on a des preuves avec le nom de l'uploader, on l'utilise pour mapper l'auteur
+        const evDataRaw = Array.isArray(evRes) ? evRes : (evRes as any).data;
+        if (evDataRaw && Array.isArray(evDataRaw)) {
+          evDataRaw.forEach((e: any) => {
+            if (e.uploaded_by && e.uploader_name && !usersMap[e.uploaded_by]) {
+              usersMap[e.uploaded_by] = e.uploader_name;
+            }
+          });
+        }
 
         if (rumorVerdicts.length > 0) {
           const mappedVerdicts: Verdict[] = rumorVerdicts.map((v, idx) => ({
@@ -137,14 +158,14 @@ export default function RumeurDetailPage() {
             sources_pour: v.evidences_for || [],
             sources_contre: v.evidences_against || [],
             regle: v.summary || "Règle appliquée",
-            auteur: v.moderator_id ? (usersMap[v.moderator_id] || "Modérateur Anonyme") : (v.moderator_name || "Modérateur"),
+            auteur: usersMap[v.moderator_id] || v.moderator_name || "Modérateur",
             date: v.published_at ? new Date(v.published_at).toLocaleString() : "",
             supersede: idx > 0 ? `V${idx}` : null,
             note: v.summary || ""
           }));
           setVerdicts(mappedVerdicts);
         }
-
+        setUsersMap(usersMap);
       } catch (err) {
         console.error("Erreur chargement:", err);
       } finally {
@@ -303,7 +324,33 @@ export default function RumeurDetailPage() {
       alert("Erreur lors de l'émission du verdict.");
     } finally {
       setLoading(false);
+      setLoading(false);
       setModalMode("NONE");
+    }
+  };
+
+  const handleViewVerdict = (v: Verdict) => {
+    setSelectedVerdict(v);
+    setModalMode("VERDICT_DETAIL");
+  };
+
+  const handleOpenAudit = async () => {
+    if (!claimId) {
+      alert("Aucun claim n'a encore été créé pour cette rumeur. L'audit complet n'est pas disponible.");
+      setModalMode("AUDIT");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await ClaimsService.getApiClaimsAudit(claimId);
+      setAuditLog((res as any).data || res);
+    } catch (err) {
+      // Backend might return 404 if the endpoint is not yet implemented
+      // Fallback to local simulation mode without logging to console.error
+      setAuditLog(null);
+    } finally {
+      setLoading(false);
+      setModalMode("AUDIT");
     }
   };
 
@@ -364,6 +411,9 @@ export default function RumeurDetailPage() {
               <span style={{ padding: "4px 10px", background: C.slate100, color: C.slate600, fontSize: 11, fontWeight: 700, borderRadius: 6, textTransform: "uppercase" }}>{rumor?.location || "Localisation"}</span>
               <span style={{ padding: "4px 10px", background: getStatusColor(activeVerdict.status).bg, color: getStatusColor(activeVerdict.status).color, fontSize: 12, fontWeight: 700, borderRadius: 6 }}>
                 {getStatusColor(activeVerdict.status).label}
+              </span>
+              <span style={{ color: C.slate400, fontSize: 12, marginLeft: 8 }}>
+                Signalé par <strong style={{ color: C.slate600 }}>{usersMap[rumor?.user_id || ""] || (rumor?.user_id ? `Utilisateur #${rumor.user_id.substring(0, 5)}` : "Anonyme")}</strong>
               </span>
             </div>
             <h1 style={{ fontSize: 24, fontWeight: 800, color: C.slate900, lineHeight: 1.3, letterSpacing: "-0.5px" }}>
@@ -456,7 +506,21 @@ export default function RumeurDetailPage() {
                   <div style={{ width: 34, height: 34, borderRadius: "50%", background: isActive ? C.blue600 : C.slate200, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontWeight: 700, fontSize: 13, border: `4px solid ${C.slate50}` }}>
                     {isDefault ? "0" : v.id}
                   </div>
-                  <div style={{ background: "#fff", border: `1px solid ${isActive ? C.blue600 : C.slate200}`, borderRadius: 8, padding: 16, flex: 1, opacity: isActive ? 1 : 0.7 }}>
+                  <div 
+                    onClick={() => handleViewVerdict(v)}
+                    style={{ 
+                      background: "#fff", 
+                      border: `1px solid ${isActive ? C.blue600 : C.slate200}`, 
+                      borderRadius: 8, 
+                      padding: 16, 
+                      flex: 1, 
+                      opacity: isActive ? 1 : 0.7,
+                      cursor: "pointer",
+                      transition: "all .2s"
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = C.blue600; e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.05)"; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = isActive ? C.blue600 : C.slate200; e.currentTarget.style.boxShadow = "none"; }}
+                  >
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, alignItems: "center" }}>
                       <span style={{ 
                         padding: "3px 8px", borderRadius: 6, fontSize: 12, fontWeight: 700,
@@ -486,8 +550,9 @@ export default function RumeurDetailPage() {
           </div>
 
           <div style={{ marginTop: 24 }}>
-            <button onClick={() => setModalMode("AUDIT")} style={{ 
-              width: "100%", padding: "14px", background: C.slate100, border: `1px solid ${C.slate200}`, 
+            <button onClick={handleOpenAudit} disabled={loading} style={{ 
+              width: "100%", padding: "14px", background: loading ? C.slate200 : C.slate100, border: `1px solid ${C.slate200}`, 
+
               color: C.slate900, borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: "pointer", 
               display: "flex", alignItems: "center", justifyContent: "center", gap: 10, transition: "all .2s" 
             }}
@@ -495,7 +560,7 @@ export default function RumeurDetailPage() {
               onMouseLeave={e => { e.currentTarget.style.background = C.slate100; e.currentTarget.style.transform = "translateY(0)"; }}
             >
               <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-              Générer Rapport d'Audit
+              {loading ? "Génération en cours..." : "Générer Rapport d'Audit"}
             </button>
           </div>
         </div>
@@ -746,6 +811,94 @@ ${v.date} : Statut → ${v.status} (ID: ${v.id})
                     onMouseLeave={e => e.currentTarget.style.background = C.slate100}
                   >
                     Fermer le rapport
+                  </button>
+                </div>
+              )}
+
+              {/* DETAIL VERDICT */}
+              {modalMode === "VERDICT_DETAIL" && selectedVerdict && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                    <span style={{ 
+                      padding: "4px 12px", borderRadius: 8, fontSize: 14, fontWeight: 700,
+                      background: getStatusColor(selectedVerdict.status).bg, 
+                      color: getStatusColor(selectedVerdict.status).color
+                    }}>
+                      {getStatusColor(selectedVerdict.status).label}
+                    </span>
+                    <span style={{ fontSize: 13, color: C.slate500 }}>{selectedVerdict.date}</span>
+                  </div>
+                  
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                    <div>
+                      <label style={{ display: "block", fontSize: 11, fontWeight: 800, color: C.slate400, marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Modérateur</label>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: C.slate900 }}>{selectedVerdict.auteur}</div>
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: 11, fontWeight: 800, color: C.slate400, marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>ID Verdict</label>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: C.slate900 }}>{selectedVerdict.id}</div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ display: "block", fontSize: 11, fontWeight: 800, color: C.slate400, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Note de décision</label>
+                    <div style={{ fontSize: 14, color: C.slate700, lineHeight: 1.6, background: C.slate50, padding: "16px 20px", borderRadius: 16, border: `1px solid ${C.slate100}` }}>
+                      {selectedVerdict.note || "Aucune note détaillée."}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ display: "block", fontSize: 11, fontWeight: 800, color: C.slate400, marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Base légale / Règle</label>
+                    <div style={{ fontSize: 14, color: C.slate600, fontWeight: 500 }}>{selectedVerdict.regle}</div>
+                  </div>
+
+                  {selectedVerdict.confiance > 0 && (
+                    <div>
+                      <label style={{ display: "block", fontSize: 11, fontWeight: 800, color: C.slate400, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>Indice de confiance</label>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <div style={{ flex: 1, height: 8, background: C.slate100, borderRadius: 4, overflow: "hidden" }}>
+                          <div style={{ width: `${selectedVerdict.confiance * 100}%`, height: "100%", background: C.blue600, borderRadius: 4 }} />
+                        </div>
+                        <span style={{ fontSize: 14, fontWeight: 800, color: C.blue600 }}>{Math.round(selectedVerdict.confiance * 100)}%</span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div>
+                    <label style={{ display: "block", fontSize: 11, fontWeight: 800, color: C.slate400, marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.05em" }}>Preuves analysées</label>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 200, overflowY: "auto", paddingRight: 4 }}>
+                      {selectedVerdict.sources_pour.map(id => {
+                        const ev = evidences.find(e => e.realId === id || e.id === id);
+                        return (
+                          <div key={id} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: 12, background: "#f0fdf4", border: "1px solid #dcfce7", borderRadius: 12 }}>
+                            <div style={{ padding: "2px 6px", background: C.green600, color: "#fff", borderRadius: 4, fontSize: 9, fontWeight: 900 }}>POUR</div>
+                            <div style={{ fontSize: 13, color: "#166534", fontWeight: 500 }}>{ev ? ev.detail : `Preuve #${id}`}</div>
+                          </div>
+                        );
+                      })}
+                      {selectedVerdict.sources_contre.map(id => {
+                        const ev = evidences.find(e => e.realId === id || e.id === id);
+                        return (
+                          <div key={id} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: 12, background: "#fef2f2", border: "1px solid #fee2e2", borderRadius: 12 }}>
+                            <div style={{ padding: "2px 6px", background: C.red600, color: "#fff", borderRadius: 4, fontSize: 9, fontWeight: 900 }}>CONTRE</div>
+                            <div style={{ fontSize: 13, color: "#991b1b", fontWeight: 500 }}>{ev ? ev.detail : `Preuve #${id}`}</div>
+                          </div>
+                        );
+                      })}
+                      {selectedVerdict.sources_pour.length === 0 && selectedVerdict.sources_contre.length === 0 && (
+                        <div style={{ textAlign: "center", padding: 20, color: C.slate400, fontSize: 13, background: C.slate50, borderRadius: 12, border: `1px dashed ${C.slate200}` }}>
+                          Aucune preuve directe liée.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <button onClick={() => setModalMode("NONE")} style={{ 
+                    marginTop: 12, width: "100%", padding: "16px", background: C.slate900, 
+                    color: "#fff", fontWeight: 700, borderRadius: 16, border: "none", cursor: "pointer",
+                    boxShadow: `0 8px 20px ${C.slate900}30`
+                  }}>
+                    Fermer les détails
                   </button>
                 </div>
               )}
