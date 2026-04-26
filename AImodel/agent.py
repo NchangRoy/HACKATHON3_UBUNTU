@@ -18,7 +18,7 @@ from AImodel.tools import  compute_claim_confidence,classify_and_rank_claims
 print(os.getenv("BASE_URL"))
 llm = ChatOpenAI(
     model="openai/gpt-oss-120b",
-    api_key="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",
+    api_key="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",
     base_url="https://openrouter.ai/api/v1"
 )
 
