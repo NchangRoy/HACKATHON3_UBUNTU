@@ -1,6 +1,8 @@
 from fastapi import FastAPI
-from schemas import QueryRequest, ResearchResponse,ClaimRequest, ClaimResponse
-from agent import run_agent,extract_claims
+from fastapi.params import Body
+from AImodel.schemas import QueryRequest, ResearchResponse,ClaimRequest, ClaimResponse
+from AImodel.agent import run_agent,extract_claims
+from AImodel.tools import classify_and_rank_claims
 
 app = FastAPI(
     title="Claim Extraction API",
@@ -42,5 +44,23 @@ def score_claim(payload: dict):
         "claim_evidences": payload["claim_evidences"],
         "rules": payload["rules"]
     })
+
+    return result
+
+
+@app.post("/classify_claims")
+def classify_claims(payload: dict = Body(...)):
+    """
+    Receives list of claims and returns:
+    - theme classification
+    - ranked priority list
+    """
+
+    claims = payload.get("claims", [])
+
+    if not isinstance(claims, list):
+        return {"error": "claims must be a list of strings"}
+
+    result = run_agent(f"Classify and rank the following claims:\n{claims}")
 
     return result

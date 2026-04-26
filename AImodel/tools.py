@@ -3,7 +3,10 @@
 from langchain.tools import tool
 import math
 from typing import List, Dict, Any
-
+from langchain.tools import tool
+from typing import List, Dict, Any
+from collections import Counter
+import math
 
 def sigmoid(x: float) -> float:
     return 1 / (1 + math.exp(-x))
@@ -105,25 +108,82 @@ def compute_claim_confidence(
         "details": explanation
     }
 
-
-
-# tools/ocr.py
-import easyocr
-from langchain.tools import tool
-import os
-
-reader = easyocr.Reader(['en'])
+THEMES = [
+    "health",
+    "politics",
+    "gossip",
+    "technology",
+    "crime",
+    "economy",
+    "education",
+    "sports",
+    "other"
+]
 
 @tool
-def extract_text_from_image(image_path: str) -> str:
+def classify_and_rank_claims(claims: List[str]) -> List[Dict[str, Any]]:
     """
-    Extract text from an image using EasyOCR.
+    Detect theme of each claim and rank by priority.
     """
 
-    if not os.path.exists(image_path):
-        return "File not found."
+    results = []
 
-    results = reader.readtext(image_path, detail=0)
-    text = " ".join(results)
+    for claim in claims:
 
-    return text.strip() if text else "No readable text found."
+        # ---- simple keyword heuristic (fast baseline) ----
+        text = claim.lower()
+
+        score = 0.5  # base priority
+
+        if any(w in text for w in ["covid", "hospital", "vaccine", "doctor"]):
+            theme = "health"
+            score += 0.3
+
+        elif any(w in text for w in ["president", "election", "government", "minister"]):
+            theme = "politics"
+            score += 0.3
+
+        elif any(w in text for w in ["leak", "rumor", "celebrity", "said", "ex"]):
+            theme = "gossip"
+            score += 0.25
+
+        elif any(w in text for w in ["ai", "software", "app", "technology", "computer"]):
+            theme = "technology"
+            score += 0.25
+
+        elif any(w in text for w in ["crime", "arrest", "police", "theft"]):
+            theme = "crime"
+            score += 0.35
+
+        elif any(w in text for w in ["economy", "inflation", "market", "price"]):
+            theme = "economy"
+            score += 0.25
+
+        elif any(w in text for w in ["school", "student", "exam", "university"]):
+            theme = "education"
+            score += 0.2
+
+        elif any(w in text for w in ["match", "player", "team", "goal"]):
+            theme = "sports"
+            score += 0.2
+
+        else:
+            theme = "other"
+
+        # ---- priority boost based on claim structure ----
+        if len(claim.split()) > 20:
+            score += 0.1  # complex claims = more important
+
+        if "!" in claim or "?" in claim:
+            score += 0.05  # emotionally charged
+
+        results.append({
+            "claim": claim,
+            "theme": theme,
+            "priority": round(min(1.0, score), 3)
+        })
+
+    # ---- rank by priority descending ----
+    results.sort(key=lambda x: x["priority"], reverse=True)
+
+    return results

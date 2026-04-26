@@ -6,20 +6,21 @@ load_dotenv()
 
 
 from pydantic import BaseModel
-from langchain_ollama import ChatOllama
+
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import PydanticOutputParser
 from  langchain_classic.agents import create_tool_calling_agent
 from langchain_classic.agents import AgentExecutor
 from langchain.tools import tool
-from tools import  compute_claim_confidence
+from AImodel.tools import  compute_claim_confidence,classify_and_rank_claims
 
-
-llm=ChatOpenAI(model="openai/gpt-oss-120b",   # OpenRouter model name
-    api_key=os.getenv("API_KEY"),
-    base_url=os.getenv("BASE_URL"))
-
+print(os.getenv("BASE_URL"))
+llm = ChatOpenAI(
+    model="openai/gpt-oss-120b",
+    api_key="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",
+    base_url="https://openrouter.ai/api/v1"
+)
 
 
 ####tools####
@@ -107,9 +108,9 @@ prompt=ChatPromptTemplate.from_messages(
 agent=create_tool_calling_agent(
     llm=llm,
     prompt=prompt,
-    tools=[extract_claims, filter_contradictory_claims,compute_claim_confidence],
+    tools=[extract_claims, filter_contradictory_claims,compute_claim_confidence,classify_and_rank_claims],
 )
-agent_executor=AgentExecutor(agent=agent,tools=[extract_claims, filter_contradictory_claims,compute_claim_confidence],verbose=True)
+agent_executor=AgentExecutor(agent=agent,tools=[extract_claims, filter_contradictory_claims,compute_claim_confidence,classify_and_rank_claims],verbose=True)
 #query=input("Enter query\n")
 #raw_response=agent_executor.invoke({"query":query})
 
