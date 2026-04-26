@@ -56,6 +56,7 @@ export default function DocsPage() {
         </div>
       </header>
 
+
       <main style={{ maxWidth: 900, margin: "0 auto", padding: "120px 16px 80px" }}>
         {/* Header */}
         <div style={{ marginBottom: 48 }}>
