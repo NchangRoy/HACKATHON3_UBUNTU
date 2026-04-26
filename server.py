@@ -32,3 +32,26 @@ def transcribe_audio(audio_path: str) -> str:
     result = model.transcribe(audio_path)
     return result["text"]
 
+
+
+
+""# tools/ocr.py
+import easyocr
+from langchain.tools import tool
+import os
+
+reader = easyocr.Reader(['en'])
+
+@tool
+def extract_text_from_image(image_path: str) -> str:
+    """
+    Extract text from an image using EasyOCR.
+    """
+
+    if not os.path.exists(image_path):
+        return "File not found."
+
+    results = reader.readtext(image_path, detail=0)
+    text = " ".join(results)
+
+    return text.strip() if text else "No readable text found."""
