@@ -6,6 +6,7 @@ import { RumorsService, ModeratorsService, ClaimsService, VerdictService } from 
 import type { Rumor, Moderator } from "@/api";
 import { setAuthToken, getAuthToken } from "@/services/api-client";
 import { useRouter } from "next/navigation";
+import { AIService } from "@/services/ai-service";
 
 const C = {
   blue600: "#2563eb", blue700: "#1d4ed8", blue50: "#eff6ff", blue100: "#dbeafe",
@@ -121,6 +122,12 @@ export default function ModDashboard() {
   const [verdictLoading, setVerdictLoading] = useState(false);
   const [rumorStatuses, setRumorStatuses] = useState<Record<string, string>>({});
 
+  const [showAtomizeModal, setShowAtomizeModal] = useState(false);
+  const [atomizingRumor, setAtomizingRumor] = useState<Rumor | null>(null);
+  const [extractedClaims, setExtractedClaims] = useState<string[]>([]);
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [saveLoading, setSaveLoading] = useState<Record<number, boolean>>({});
+
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
@@ -211,6 +218,38 @@ export default function ModDashboard() {
       alert("Erreur lors de l'émission du verdict.");
     } finally {
       setVerdictLoading(false);
+    }
+  };
+
+  const handleAtomize = async (r: Rumor) => {
+    setAtomizingRumor(r);
+    setShowAtomizeModal(true);
+    setExtractedClaims([]);
+    setIsExtracting(true);
+    try {
+      const claims = await AIService.extractClaims(r.text || "");
+      setExtractedClaims(claims);
+    } catch (err) {
+      console.error("AI Extraction failed:", err);
+    } finally {
+      setIsExtracting(false);
+    }
+  };
+
+  const handleSaveClaim = async (text: string, index: number) => {
+    if (!atomizingRumor?.id) return;
+    setSaveLoading(prev => ({ ...prev, [index]: true }));
+    try {
+      await ClaimsService.postApiClaims({
+        rumor_id: atomizingRumor.id,
+        text: text
+      });
+      // Optionnel: marquer comme enregistré
+    } catch (err) {
+      console.error("Save claim failed:", err);
+      alert("Erreur lors de l'enregistrement.");
+    } finally {
+      setSaveLoading(prev => ({ ...prev, [index]: false }));
     }
   };
 
@@ -390,6 +429,19 @@ export default function ModDashboard() {
                             <div className="r-table-col-id" style={{ fontSize: 11, fontFamily: "monospace", color: C.slate400 }}>{r.id?.substring(0, 8)}</div>
                             <div className="r-table-col-date" style={{ fontSize: 12, color: C.slate700 }}>{(r.createdAt || (r as any).created_at) ? new Date(r.createdAt || (r as any).created_at).toLocaleDateString('fr-FR') : "-"}</div>
                             <div style={{ textAlign: "right", display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                              <button 
+                                onClick={() => handleAtomize(r)} 
+                                style={{ 
+                                  display: "inline-block", padding: "6px 14px", border: `1px solid ${C.accent}40`, 
+                                  borderRadius: 6, fontSize: 11, fontWeight: 700, color: C.accent, 
+                                  textDecoration: "none", background: "rgba(56, 189, 248, 0.05)", cursor: "pointer",
+                                  transition: "all .2s"
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.background = C.accent; e.currentTarget.style.color = "#fff"; }}
+                                onMouseLeave={e => { e.currentTarget.style.background = "rgba(56, 189, 248, 0.05)"; e.currentTarget.style.color = C.accent; }}
+                              >
+                                Atomiser
+                              </button>
                               <Link href={`/rumeur/${r.id}`} style={{ display: "inline-block", padding: "6px 14px", border: `1px solid ${C.slate200}`, borderRadius: 6, fontSize: 11, fontWeight: 700, color: C.slate700, textDecoration: "none", background: "#fff" }}>Détail</Link>
                             </div>
                           </div>
@@ -634,6 +686,63 @@ export default function ModDashboard() {
                 {verdictLoading ? "Enregistrement..." : "Confirmer le Verdict"}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Modal Atomisation IA */}
+      {showAtomizeModal && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(2, 6, 23, 0.8)", backdropFilter: "blur(8px)" }}>
+          <div style={{ background: "#fff", width: "100%", maxWidth: 600, borderRadius: 24, overflow: "hidden", boxShadow: "0 20px 50px rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.1)" }}>
+            <div style={{ background: C.slate950, padding: "24px 32px", borderBottom: `1px solid ${C.sidebarBorder}` }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <h3 style={{ fontSize: 18, fontWeight: 800, color: "#fff", letterSpacing: "-0.5px" }}>Atomisation par IA</h3>
+                  <p style={{ fontSize: 12, color: C.slate500, marginTop: 4 }}>Extraction des affirmations atomiques via NLP</p>
+                </div>
+                <button onClick={() => setShowAtomizeModal(false)} style={{ background: "rgba(255,255,255,0.05)", border: "none", width: 32, height: 32, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#fff" }}>&times;</button>
+              </div>
+            </div>
+            
+            <div style={{ padding: 32, maxHeight: "70vh", overflowY: "auto" }}>
+              <div style={{ background: C.slate50, padding: 16, borderRadius: 12, border: `1px solid ${C.slate200}`, marginBottom: 24 }}>
+                <p style={{ fontSize: 11, fontWeight: 800, color: C.slate400, textTransform: "uppercase", marginBottom: 8, letterSpacing: "0.05em" }}>Rumeur d'origine</p>
+                <p style={{ fontSize: 14, color: C.slate800, fontWeight: 500, lineHeight: 1.5 }}>"{atomizingRumor?.text}"</p>
+              </div>
+
+              {isExtracting ? (
+                <div style={{ textAlign: "center", padding: "40px 0" }}>
+                  <div style={{ width: 30, height: 30, border: `3px solid ${C.blue50}`, borderTopColor: C.blue600, borderRadius: "50%", animation: "spin 1s linear infinite", margin: "0 auto 16px" }} />
+                  <p style={{ fontSize: 13, color: C.slate500, fontWeight: 500 }}>L'IA analyse le texte et extrait les affirmations...</p>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: C.slate900, marginBottom: 4 }}>Affirmations extraites ({extractedClaims.length})</p>
+                  {extractedClaims.map((claim, idx) => (
+                    <div key={idx} style={{ display: "flex", alignItems: "center", gap: 12, padding: 12, background: "#fff", border: `1px solid ${C.slate200}`, borderRadius: 12, transition: "all .2s" }}>
+                      <div style={{ width: 24, height: 24, borderRadius: 6, background: C.blue50, color: C.blue600, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800 }}>{idx + 1}</div>
+                      <div style={{ flex: 1, fontSize: 13, fontWeight: 500, color: C.slate700 }}>{claim}</div>
+                      <button 
+                        onClick={() => handleSaveClaim(claim, idx)}
+                        disabled={saveLoading[idx]}
+                        style={{ 
+                          padding: "6px 12px", background: saveLoading[idx] ? C.slate100 : C.slate900, color: "#fff", 
+                          borderRadius: 8, fontSize: 11, fontWeight: 700, border: "none", cursor: "pointer" 
+                        }}
+                      >
+                        {saveLoading[idx] ? "..." : "Valider"}
+                      </button>
+                    </div>
+                  ))}
+                  {extractedClaims.length === 0 && !isExtracting && (
+                    <p style={{ textAlign: "center", padding: 20, color: C.slate400, fontSize: 13 }}>Aucune affirmation extraite. Essayez d'ajouter des claims manuellement.</p>
+                  )}
+                </div>
+              )}
+            </div>
+            
+            <div style={{ padding: "20px 32px", background: C.slate50, borderTop: `1px solid ${C.slate200}`, display: "flex", justifyContent: "flex-end" }}>
+              <button onClick={() => setShowAtomizeModal(false)} style={{ padding: "10px 20px", background: "#fff", border: `1px solid ${C.slate300}`, borderRadius: 10, fontSize: 13, fontWeight: 700, color: C.slate700, cursor: "pointer" }}>Fermer</button>
+            </div>
           </div>
         </div>
       )}

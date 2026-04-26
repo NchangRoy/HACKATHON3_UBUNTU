@@ -356,7 +356,7 @@ export default function PublicHome() {
         <div style={{ position: "absolute", bottom: "10%", right: "-5%", width: 300, height: 300, background: C.blue500, filter: "blur(100px)", opacity: 0.1, borderRadius: "50%" }} />
 
         {/* Dégradé radial central */}
-        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 50% 50%, transparent 0%, rgba(15,23,42,0.8) 100%)" }} />
+        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 50% 50%, transparent 0%, rgba(31, 42, 68, 0.8) 100%)" }} />
 
         <div style={{ position: "relative", maxWidth: 1100, margin: "0 auto", width: "100%", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", zIndex: 10 }}>
           <h1 className="r-hero-title" style={{ fontSize: "clamp(32px, 6vw, 64px)", fontWeight: 900, letterSpacing: "-2px", lineHeight: 1, marginBottom: 24, maxWidth: 850, textShadow: "0 4px 20px rgba(0,0,0,0.3)" }}>
