@@ -187,6 +187,92 @@ export const swaggerSpec = {
       }
     },
 
+    "/api/users/{id}": {
+      get: {
+        tags: ["Users"], summary: "Détail d'un utilisateur", security: [],
+        parameters: [{ in: "path", name: "id", required: true, schema: { type: "string" } }],
+        responses: {
+          "200": { description: "Utilisateur trouvé", content: { "application/json": { schema: { "$ref": "#/components/schemas/User" } } } },
+          "404": { description: "Introuvable", content: { "application/json": { schema: { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+
+    "/api/users/update/{id}": {
+      put: {
+        tags: ["Users"],
+        summary: "Mettre à jour un utilisateur",
+        security: [{ BearerAuth: [] }],
+
+        parameters: [
+          {
+            in: "path",
+            name: "id",
+            required: true,
+            schema: { type: "string" },
+            description: "ID de l'utilisateur"
+          }
+        ],
+
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  name: { type: "string", example: "Jean Dupont" },
+                  phone: { type: "string", example: "+237612345678" },
+                  email: { type: "string", example: "jean@example.com" }
+                }
+              }
+            }
+          }
+        },
+
+        responses: {
+          "200": {
+            description: "Utilisateur mis à jour avec succès",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    success: { type: "boolean", example: true },
+                    data: {
+                      "$ref": "#/components/schemas/User"
+                    }
+                  }
+                }
+              }
+            }
+          },
+
+          "404": {
+            description: "Utilisateur introuvable",
+            content: {
+              "application/json": {
+                schema: {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+
+          "400": {
+            description: "Données invalides",
+            content: {
+              "application/json": {
+                schema: {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
     // ── RUMORS ──────────────────────────────────────────────────────
     "/api/rumors": {
       get: {
